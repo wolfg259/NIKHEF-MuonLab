@@ -9,6 +9,8 @@ import serial.tools.list_ports
 from datetime import date, datetime, timedelta
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from pathlib import Path
 
 
 class MuonLab_III:
@@ -48,9 +50,14 @@ class MuonLab_III:
         self.device.write(
             b"\x99\x10\x55\x66"
         )  # Set offset ADC CH1 offset = (nBit/255)*380mV x55=d85 = 126 mV
-        self.device.write(
-            b"\x99\x20\x08\x66"
-        ) # Enable USB for data reception
+        self.device.write(b"\x99\x20\x08\x66")  # Enable USB for data reception
+
+        # create lists to save all measurement data
+        self.lifetimes = []
+        self.coincidences = 0
+        self.hit_rate_ch1 = []
+        self.hit_rate_ch2 = []
+        self.delta_times = []
 
     def get_lifetimes(self, s=0, m=0, h=0, print_lifetime=False):
         """
@@ -66,10 +73,8 @@ class MuonLab_III:
             lifetimes: list of measured lifetimes in ns
 
         """
-        # set device to measure lifetime 
-        self.device.write(
-            b"\x99\x20\x09\x66"
-        )
+        # set device to measure lifetime
+        self.device.write(b"\x99\x20\x09\x66")
 
         if m == 0 and m == 0 and s == 0:
             s = 5
@@ -79,7 +84,11 @@ class MuonLab_III:
         lifetimes = []
 
         print("")
-        print("Started lifetime measurement at {}. Set duration: {}".format(datetime.now(), dT_max))
+        print(
+            "Started lifetime measurement at {}. Set duration: {}".format(
+                datetime.now(), dT_max
+            )
+        )
 
         # loop running while time difference < dT
         while dT < dT_max:
@@ -97,7 +106,7 @@ class MuonLab_III:
                     if byte_2 == b"\xA5":
 
                         # read and convert next 2 bytes corresponding to time
-                        bytes_value = self.device.read(2)  
+                        bytes_value = self.device.read(2)
                         int_value = int.from_bytes(bytes_value, byteorder="big")
                         # step size = 10 ns
                         time_value = int_value * 10
@@ -106,6 +115,8 @@ class MuonLab_III:
                         if print_lifetime:
                             print("     measured lifetime: {} ns".format(time_value))
 
+        # add to total
+        self.lifetimes.extend(lifetimes)
         print("Finished lifetime measurement.")
         print("")
 
@@ -126,9 +137,7 @@ class MuonLab_III:
 
         """
         # set device to measure coincidences
-        self.device.write(
-            b"\x99\x20\x09\x66"
-        )
+        self.device.write(b"\x99\x20\x09\x66")
 
         if m == 0 and m == 0 and s == 0:
             s = 5
@@ -138,7 +147,11 @@ class MuonLab_III:
         coincidences = 0
 
         print("")
-        print("Started coincidence measurement at {}. Set duration: {}".format(datetime.now(), dT_max))
+        print(
+            "Started coincidence measurement at {}. Set duration: {}".format(
+                datetime.now(), dT_max
+            )
+        )
 
         # loop running while time difference < dT
         while dT < dT_max:
@@ -157,8 +170,14 @@ class MuonLab_III:
 
                         coincidences += 1
                         if print_coincidence:
-                            print("     measured coincidence. total: {}".format(coincidences))
+                            print(
+                                "     measured coincidence. total: {}".format(
+                                    coincidences
+                                )
+                            )
 
+        # add to total
+        self.coincidences += coincidences
         print("Finished coincidence measurement.")
         print("")
 
@@ -189,7 +208,11 @@ class MuonLab_III:
         hits_ch2 = []
 
         print("")
-        print("Started hit rate collection at {}. Set duration: {}".format(datetime.now(), dT_max))
+        print(
+            "Started hit rate collection at {}. Set duration: {}".format(
+                datetime.now(), dT_max
+            )
+        )
 
         # loop running while time difference < dT
         while dT < dT_max:
@@ -212,10 +235,13 @@ class MuonLab_III:
                         hit_ch1 = int.from_bytes(bytes_ch1, byteorder="big")
                         hits_ch1.append(hit_ch1)
                         hits_ch2.append(hit_ch2)
-                        
-                        if print_hits:  
+
+                        if print_hits:
                             print("     ch1: {} ch2: {}".format(hit_ch1, hit_ch2))
-        
+
+        # add to total
+        self.hit_rate_ch1.extend(hits_ch1)
+        self.hit_rate_ch2.extend(hits_ch2)
         print("Finished hit rate collection.")
         print("")
 
@@ -239,9 +265,7 @@ class MuonLab_III:
         """
 
         # set device to measure coincidences
-        self.device.write(
-            b"\x99\x20\x0A\x66"
-        )
+        self.device.write(b"\x99\x20\x0A\x66")
 
         if m == 0 and m == 0 and s == 0:
             s = 5
@@ -251,7 +275,11 @@ class MuonLab_III:
         delta_times = []
 
         print("")
-        print("Started delta time measurement at {}. Set duration: {}".format(datetime.now(), dT_max))
+        print(
+            "Started delta time measurement at {}. Set duration: {}".format(
+                datetime.now(), dT_max
+            )
+        )
 
         while dT < dT_max:
 
@@ -259,8 +287,8 @@ class MuonLab_III:
             if self.device.inWaiting() > 65000:
                 self.device.flushInput()
             else:
-                dT = datetime.now() - start_time 
-                
+                dT = datetime.now() - start_time
+
                 # check for beginning of a data message
                 value = self.device.read(1)
                 if value == b"\x99":
@@ -269,7 +297,7 @@ class MuonLab_III:
                     if byte_2 == b"\xB5" or byte_2 == b"\xB7":
 
                         bytes_time = self.device.read(2)
-                        value_time = int.from_bytes(bytes_time, byteorder="big") * .5
+                        value_time = int.from_bytes(bytes_time, byteorder="big") * 0.5
                         # if identifier == b\'xB7' detector 2 was hit first so time should be reversed
                         if byte_2 == b"\xB7":
                             value_time *= -1
@@ -278,6 +306,8 @@ class MuonLab_III:
                         if print_time:
                             print("     measured delta time: {}".format(value_time))
 
+        # add to total
+        self.delta_times.extend(delta_times)
         print("Finished delta time measurement")
         print("")
 
@@ -292,26 +322,59 @@ class MuonLab_III:
 
         """
         # set device to measure coincidences
-        self.device.write(
-            b"\x99\x20\x0A\x66"
-        )
+        self.device.write(b"\x99\x20\x0A\x66")
         ##### TODO: consider signal received and build function #####
 
+    def save_data(self, name="unnamed"):
+        """
+        Saves measured lifetimes, coincidences, hit rates and delta 
+        times in a .csv file.
+
+        """
+
+        if len(self.lifetimes) == 0:
+            self.lifetimes.append("None measured")
+        if len(self.hit_rate_ch1) == 0:
+            self.hit_rate_ch1.append("None measured")
+        if len(self.hit_rate_ch2) == 0:
+            self.hit_rate_ch2.append("None measured")
+        if len(self.delta_times) == 0:
+            self.delta_times.append("None measured")
+
+        # make dataframes of all data
+        df_coincidence = pd.DataFrame({"Total coincidences": [self.coincidences]})
+        df_lifetime = pd.DataFrame({"Lifetimes": self.lifetimes})
+        df_hits_ch1 = pd.DataFrame({"Hits channel 1": self.hit_rate_ch1})
+        df_hits_ch2 = pd.DataFrame({"Hits channel 2": self.hit_rate_ch2})
+        df_delta_time = pd.DataFrame({"Delta times": self.delta_times})
+
+        df_total = pd.concat(
+            [df_hits_ch1, df_hits_ch2, df_lifetime, df_delta_time, df_coincidence],
+            axis=1,
+        )
+
+        Path("./data").mkdir(parents=True, exist_ok=True)
+        path = f"./data/{name}.csv"
+
+        df_total.to_csv(f"{path}", index=False)
+
+        print("Saved data at: {}".format(path))
 
 
 if __name__ == "__main__":
-    # test run 
+    # test run
     ml = MuonLab_III()
-    lifetimes = False
-    coincidences = False
-    hits = False
-    delta_time = False
+    lifetimes = True
+    coincidences = True
+    hits = True
+    delta_time = True
+    save = True
 
     if lifetimes:
-        lifetimes = ml.get_lifetimes(s=30)
+        lifetimes = ml.get_lifetimes(s=20)
         if len(lifetimes) != 0:
             print("average lifetime: {} ns".format(np.mean(lifetimes)))
-            plt.hist(lifetimes, edgecolor='black')
+            plt.hist(lifetimes, edgecolor="black")
             plt.grid()
             plt.xlabel("lifetime (ns)")
             plt.show()
@@ -323,18 +386,23 @@ if __name__ == "__main__":
         print("Total found coincidences: {}".format(coin))
 
     if hits:
-        hits_ch1, hits_ch2 = ml.get_hit_rates(print_hits=True)
-        print("avg hits/s ch1: {} avg hits/s ch2: {}".format(round(np.mean(hits_ch1), 2), round(np.mean(hits_ch2))))
+        hits_ch1, hits_ch2 = ml.get_hit_rates(s=1, print_hits=True)
+        print(
+            "avg hits/s ch1: {} avg hits/s ch2: {}".format(
+                round(np.mean(hits_ch1), 2), round(np.mean(hits_ch2))
+            )
+        )
 
     if delta_time:
-        times = ml.get_delta_time(s=30, print_time=True)
-        # plot should be normally distributed around 0 if detectors 
+        times = ml.get_delta_time(s=20, print_time=True)
+        # plot should be normally distributed around 0 if detectors
         # are not spaced vertically
-        plt.hist(times, edgecolor='black')
-        plt.grid()
-        plt.xlabel("Delta time (ns)")
-        plt.show()
+        if len(times) != 0:
+            plt.hist(times, edgecolor="black")
+            plt.grid()
+            plt.xlabel("Delta time (ns)")
+            plt.show()
 
-
-
+    if save:
+        ml.save_data()
 
