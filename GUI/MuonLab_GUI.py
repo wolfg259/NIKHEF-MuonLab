@@ -263,9 +263,9 @@ class user_interface(QMainWindow):
             left_slider_layout_TL = QFrame()
             left_slider_layout_TL.setLayout(QVBoxLayout())
             #left_slider_label_TL = QLabel("Set Input PMT 1")
-            left_slider_TL = QSlider(Qt.Vertical)
-            left_slider_TL.setTickPosition(QSlider.TicksLeft)
-            #left_slider_layout_TL.layout().addWidget(left_slider_label_TL)
+            left_slider_TL = QSlider(Qt.Horizontal)
+            left_slider_TL.setTickPosition(QSlider.TicksBelow)
+            left_slider_layout_TL.layout().addWidget(QLabel("Set threshold voltage"))
             left_slider_layout_TL.layout().addWidget(left_slider_TL)
             left_input_layout_TL.layout().addWidget(left_slider_layout_TL)
             # voltage
@@ -302,9 +302,10 @@ class user_interface(QMainWindow):
             right_slider_layout_TL = QFrame()
             right_slider_layout_TL.setLayout(QVBoxLayout())
             #right_slider_label_TL = QLabel("Set Input PMT 1")
-            right_slider_TL = QSlider(Qt.Vertical)
-            right_slider_TL.setTickPosition(QSlider.TicksLeft)
+            right_slider_TL = QSlider(Qt.Horizontal)
+            right_slider_TL.setTickPosition(QSlider.TicksBelow)
             #right_slider_layout_TL.layout().addWidget(right_slider_label_TL)
+            right_slider_layout_TL.layout().addWidget(QLabel("Set threshold voltage"))
             right_slider_layout_TL.layout().addWidget(right_slider_TL)
             right_input_layout_TL.layout().addWidget(right_slider_layout_TL)
             # voltage
@@ -376,8 +377,19 @@ class user_interface(QMainWindow):
             # start/stop experiment
             start_stop_frame_LFT = QFrame()
             start_stop_frame_LFT.setLayout(QHBoxLayout())
+
+            start_frame_LFT = QFrame()
+            start_frame_LFT.setLayout(QVBoxLayout())
             start_button_LFT = QPushButton("Start")
+            start_frame_LFT.layout().addWidget(QLabel("Record data"))
+            start_frame_LFT.layout().addWidget(start_button_LFT)
+
+            stop_frame_LFT = QFrame()
+            stop_frame_LFT.setLayout(QVBoxLayout())
             stop_button_LFT = QPushButton("Stop")
+            stop_frame_LFT.layout().addWidget(QLabel("   "))
+            stop_frame_LFT.layout().addWidget(stop_button_LFT)
+            
             status_frame_LFT = QFrame()
             status_frame_LFT.setLayout(QVBoxLayout())
             status_display_LFT = QLineEdit()
@@ -387,8 +399,8 @@ class user_interface(QMainWindow):
             status_frame_LFT.layout().addWidget(QLabel("Status"))
             status_frame_LFT.layout().addWidget(status_display_LFT)
 
-            start_stop_frame_LFT.layout().addWidget(start_button_LFT)
-            start_stop_frame_LFT.layout().addWidget(stop_button_LFT)
+            start_stop_frame_LFT.layout().addWidget(start_frame_LFT)
+            start_stop_frame_LFT.layout().addWidget(stop_frame_LFT)
             start_stop_frame_LFT.layout().addWidget(status_frame_LFT)
 
             frame_settings_LFT.layout().addWidget(start_stop_frame_LFT)
@@ -446,15 +458,181 @@ class user_interface(QMainWindow):
             tabs.addTab(tab_LFT, "Life Time Measurement")
 
         # TAB 4: DELTA TIME MEASUREMENT
-        ##### TODO
-        self.plot_widget_DT = pg.PlotWidget()
-        tabs.addTab(self.plot_widget_DT, "Delta Time Measurement")
+        # general layout:
+        #   left: start/stop, reset display
+        #   right: histogram plot
+        if set_DT_tab:
+           
+            tab_DT = QWidget()
+            tab_DT_layout = QHBoxLayout()
+
+            # left side layout total
+            left_frame_DT = QFrame()
+            left_frame_DT.setLayout(QVBoxLayout())
+
+            left_settings_DT = QFrame()
+            left_settings_DT.setFrameShape(QFrame.StyledPanel)
+            left_settings_DT.setLayout(QVBoxLayout())
+
+            # start/stop dT measuring
+            start_stop_frame_DT = QFrame()
+            start_stop_frame_DT.setLayout(QHBoxLayout())
+
+            start_frame_DT = QFrame()
+            start_frame_DT.setLayout(QVBoxLayout())
+            start_button_DT = QPushButton("Start")
+            start_frame_DT.layout().addWidget(QLabel("Record data"))
+            start_frame_DT.layout().addWidget(start_button_DT)
+
+            stop_frame_DT = QFrame()
+            stop_frame_DT.setLayout(QVBoxLayout())
+            stop_button_DT = QPushButton("Stop")
+            stop_frame_DT.layout().addWidget(QLabel("   "))
+            stop_frame_DT.layout().addWidget(stop_button_DT)
+
+            start_button_DT = QPushButton("Start")
+            stop_button_DT = QPushButton("Stop")
+            status_frame_DT = QFrame()
+            status_frame_DT.setLayout(QVBoxLayout())
+            status_display_DT = QLineEdit()
+            status_display_DT.setFixedWidth(100)
+            status_display_DT.setReadOnly(True)
+
+            status_frame_DT.layout().addWidget(QLabel("Status"))
+            status_frame_DT.layout().addWidget(status_display_DT)
+
+            start_stop_frame_DT.layout().addWidget(start_frame_DT)
+            start_stop_frame_DT.layout().addWidget(stop_frame_DT)
+            start_stop_frame_DT.layout().addWidget(status_frame_DT)
+
+            left_settings_DT.layout().addWidget(start_stop_frame_DT)
+
+            # reset display
+            reset_frame_DT = QFrame()
+            reset_frame_DT.setLayout(QVBoxLayout())
+            reset_button_DT = QPushButton("Reset")
+
+            reset_frame_DT.layout().addWidget(QLabel("Reset Display"))
+            reset_frame_DT.layout().addWidget(reset_button_DT)
+
+            left_settings_DT.layout().addWidget(reset_frame_DT)
+
+            left_frame_DT.layout().addWidget(QLabel("                   "))
+            left_frame_DT.layout().addWidget(left_settings_DT)
+            left_frame_DT.layout().addWidget(QLabel("                   "))
+
+            # display/plotting widget
+            plot_frame_DT = QFrame()
+            plot_frame_DT.setLayout(QVBoxLayout())
+            plot_frame_DT.setFrameShape(QFrame.StyledPanel)
+            display_DT = pg.PlotWidget()
+            display_DT.setLabel("left", "Counts")
+            display_DT.setLabel("bottom", "Time (us)")
+
+            plot_frame_DT.layout().addWidget(display_DT)
+            
+            tab_DT_layout.addWidget(left_frame_DT)
+            tab_DT_layout.addWidget(plot_frame_DT)
+
+            tab_DT.setLayout(tab_DT_layout)
+
+            tabs.addTab(tab_DT, "Delta Time Measurement")
 
         # TAB 5: WAVEFORM CHANNEL 1
-        self.plot_widget_WV = pg.PlotWidget()
-        tabs.addTab(self.plot_widget_WV, "Waveform Channel 1")
+        # general layout:
+        #   left: start/stop taking data, pre-trigger time, time displayed
+        #   right: plot widget displaying digitised signal
+        if set_WF_tab:
+            
+            tab_WF = QWidget()
+            tab_WF_layout = QHBoxLayout()
+
+            # left side layout total
+            left_frame_WF = QFrame()
+            left_frame_WF.setLayout(QVBoxLayout())
+
+            left_settings_WF = QFrame()
+            left_settings_WF.setFrameShape(QFrame.StyledPanel)
+            left_settings_WF.setLayout(QVBoxLayout())
+
+            # start/stop measuring
+            start_stop_frame_WF = QFrame()
+            start_stop_frame_WF.setLayout(QHBoxLayout())
+
+            start_frame_WF = QFrame()
+            start_frame_WF.setLayout(QVBoxLayout())
+            start_button_WF = QPushButton("Start")
+            start_frame_WF.layout().addWidget(QLabel("Record data"))
+            start_frame_WF.layout().addWidget(start_button_WF)
+
+            stop_frame_WF = QFrame()
+            stop_frame_WF.setLayout(QVBoxLayout())
+            stop_button_WF = QPushButton("Stop")
+            stop_frame_WF.layout().addWidget(QLabel("   "))
+            stop_frame_WF.layout().addWidget(stop_button_WF)
+
+            start_button_WF = QPushButton("Start")
+            stop_button_WF = QPushButton("Stop")
+            status_frame_WF = QFrame()
+            status_frame_WF.setLayout(QVBoxLayout())
+            status_display_WF = QLineEdit()
+            status_display_WF.setFixedWidth(100)
+            status_display_WF.setReadOnly(True)
+
+            status_frame_WF.layout().addWidget(QLabel("Status"))
+            status_frame_WF.layout().addWidget(status_display_WF)
+
+            start_stop_frame_WF.layout().addWidget(start_frame_WF)
+            start_stop_frame_WF.layout().addWidget(stop_frame_WF)
+            start_stop_frame_WF.layout().addWidget(status_frame_WF)
+
+            # pre-trigger time, time displayed
+            times_frame_WF = QFrame()
+            times_frame_WF.setLayout(QHBoxLayout())
+
+            pre_trigger_frame_WF = QFrame()
+            pre_trigger_frame_WF.setLayout(QVBoxLayout())
+            pre_trigger_slider_WF = QSlider(Qt.Horizontal)
+            pre_trigger_slider_WF.setTickPosition(QSlider.TicksBelow)
+            pre_trigger_frame_WF.layout().addWidget(QLabel("Pre-trigger time(ns)"))
+            pre_trigger_frame_WF.layout().addWidget(pre_trigger_slider_WF)
+
+            time_disp_frame_WF = QFrame()
+            time_disp_frame_WF.setLayout(QVBoxLayout())
+            time_slider_WF = QSlider(Qt.Horizontal)
+            time_slider_WF.setTickPosition(QSlider.TicksBelow)
+            time_disp_frame_WF.layout().addWidget(QLabel("Time (ns)"))
+            time_disp_frame_WF.layout().addWidget(time_slider_WF)
+
+            times_frame_WF.layout().addWidget(pre_trigger_frame_WF)
+            times_frame_WF.layout().addWidget(time_disp_frame_WF)
+
+            left_settings_WF.layout().addWidget(start_stop_frame_WF)
+            left_settings_WF.layout().addWidget(times_frame_WF)
+
+            left_frame_WF.layout().addWidget(QLabel("                   "))
+            left_frame_WF.layout().addWidget(left_settings_WF)
+            left_frame_WF.layout().addWidget(QLabel("                   "))
+
+            # display/plotting widget
+            plot_frame_WF = QFrame()
+            plot_frame_WF.setLayout(QVBoxLayout())
+            plot_frame_WF.setFrameShape(QFrame.StyledPanel)
+            display_WF = pg.PlotWidget()
+            display_WF.setLabel("left", "Amplitude (mV)")
+            display_WF.setLabel("bottom", "Time (ns)")
+
+            plot_frame_WF.layout().addWidget(display_WF)
+
+            tab_WF_layout.addWidget(left_frame_WF)
+            tab_WF_layout.addWidget(plot_frame_WF)
+
+            tab_WF.setLayout(tab_WF_layout)
+
+            tabs.addTab(tab_WF, "Waveform Channel 1")
 
         # TAB 6: HIT & COINCIDENCE RATE
+        ##### TODO
         self.plot_widget_HC = pg.PlotWidget()
         tabs.addTab(self.plot_widget_HC, "Hit & Coincidence rate")
 
