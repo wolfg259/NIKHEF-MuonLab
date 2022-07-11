@@ -7,6 +7,7 @@ import pyqtgraph as pg
 import sys
 import matplotlib.pyplot as plt
 from zmq import device
+from MuonLab_controller import list_devices, MuonLab_experiment
 
 # set general options for plots
 pg.setConfigOption("background", "w")
@@ -20,15 +21,18 @@ class user_interface(QMainWindow):
     
     """
 
-    def __init__(self, 
-            set_PMV_tab = True,
-            set_TL_tab = True,
-            set_LFT_tab = True,
-            set_DT_tab = True,
-            set_WF_tab = True,
-            set_HC_tab = True
-        ):
+    def __init__(
+        self,
+        set_PMV_tab=True,
+        set_TL_tab=True,
+        set_LFT_tab=True,
+        set_DT_tab=True,
+        set_WF_tab=True,
+        set_HC_tab=True,
+    ):
         super().__init__()
+
+        self.experiment = None
 
         ##### MAIN LAYOUT #####
         # initiating central widget
@@ -37,9 +41,11 @@ class user_interface(QMainWindow):
 
         # set general options for window
         self.setWindowTitle("MuonLab III v0.1")
-        self.setWindowIcon(QIcon(
-            "C:\\Users\\DELL\Desktop\\Internship summer\\own code\\src\\NIKHEF-MuonLabIII\\GUI\\nikhef_logo.png"
-            ))
+        self.setWindowIcon(
+            QIcon(
+                "C:\\Users\\DELL\Desktop\\Internship summer\\own code\\src\\NIKHEF-MuonLabIII\\GUI\\nikhef_logo.png"
+            )
+        )
         palette_grey = central_widget.palette()
         palette_grey.setColor(QPalette.Background, QColor(100, 100, 100))
         palette_light_grey = central_widget.palette()
@@ -50,6 +56,8 @@ class user_interface(QMainWindow):
         palette_red.setColor(QPalette.Background, QColor(230, 25, 61))
         central_widget.setAutoFillBackground(True)
         central_widget.setPalette(palette_light_grey)
+        bold_font = QFont()
+        bold_font.setBold(True)
 
         # set main layout to be vertical: on top image and counts,
         # below tabs with measurements
@@ -77,16 +85,26 @@ class user_interface(QMainWindow):
         # create vbox layout to add title
         device_vbox = QVBoxLayout()
         # create drop-down menu and label
-        device_select = QComboBox()
+        self.device_select = QComboBox()
         device_select_label = QLabel("Device")
-        device_select.addItem("--select device--")
+
+        self.device_select.addItem("--select device--")
+        connected_devices = list_devices()
+        for device in connected_devices:
+            self.device_select.addItem(device)
+        self.device_select.currentIndexChanged.connect(self.device_select_func)
+
         # add widgets to own vbox
         device_vbox.addWidget(device_select_label)
-        device_vbox.addWidget(device_select)
+        device_vbox.addWidget(self.device_select)
+
         # add status indicator
         ##### TODO: make change according to connection with muonlab
-        status_indicator = QLabel("NOT CONNECTED TO \n MUONLAB III")
-        device_vbox.addWidget(status_indicator)
+        self.status_indicator = QLineEdit()
+        self.status_indicator.setFixedWidth(150)
+        self.status_indicator.setReadOnly(True)
+        self.status_indicator.setText("NOT CONNECTED")
+        device_vbox.addWidget(self.status_indicator)
         # add vbox layout to top bar layout
         top_bar_hbox.addLayout(device_vbox)
 
@@ -152,6 +170,7 @@ class user_interface(QMainWindow):
             left_frame.setFrameShape(QFrame.StyledPanel)
             left_frame.setLayout(QVBoxLayout())
             label_left = QLabel("Photo Multiplier 1")
+            label_left.setFont(bold_font)
             ##### TODO: decide on size of labels
             # label_left.setFont(QFont('Arial font', 11))
             left_frame.layout().addWidget(label_left)
@@ -164,20 +183,22 @@ class user_interface(QMainWindow):
             left_slider_layout = QFrame()
             left_slider_layout.setLayout(QVBoxLayout())
             left_slider_label = QLabel("Set Input PMT 1")
-            left_slider = QSlider(Qt.Horizontal)
-            left_slider.setTickPosition(QSlider.TicksBelow)
+            self.left_slider = QSlider(Qt.Horizontal)
+            self.left_slider.setRange(0, 254)
+            self.left_slider.valueChanged.connect(self.PMT_1_voltage_func)
+            self.left_slider.setTickPosition(QSlider.TicksBelow)
             left_slider_layout.layout().addWidget(left_slider_label)
-            left_slider_layout.layout().addWidget(left_slider)
+            left_slider_layout.layout().addWidget(self.left_slider)
             left_input_layout.layout().addWidget(left_slider_layout)
             # voltage
             left_voltage_layout = QFrame()
             left_voltage_layout.setLayout(QVBoxLayout())
             left_voltage_label = QLabel("High Voltage PMT 1")
-            left_voltage = QLineEdit()
-            left_voltage.setFixedWidth(100)
-            left_voltage.setReadOnly(True)
+            self.left_voltage = QLineEdit()
+            self.left_voltage.setFixedWidth(100)
+            self.left_voltage.setReadOnly(True)
             left_voltage_layout.layout().addWidget(left_voltage_label)
-            left_voltage_layout.layout().addWidget(left_voltage)
+            left_voltage_layout.layout().addWidget(self.left_voltage)
             left_input_layout.layout().addWidget(left_voltage_layout)
             # add left input layout to left side layout
             left_frame.layout().addWidget(left_input_layout)
@@ -191,6 +212,7 @@ class user_interface(QMainWindow):
             right_frame.setFrameShape(QFrame.StyledPanel)
             right_frame.setLayout(QVBoxLayout())
             label_right = QLabel("Photo Multiplier 2")
+            label_right.setFont(bold_font)
             right_frame.layout().addWidget(label_right)
 
             # right side input layout: slider, voltage
@@ -201,20 +223,22 @@ class user_interface(QMainWindow):
             right_slider_layout = QFrame()
             right_slider_layout.setLayout(QVBoxLayout())
             right_slider_label = QLabel("Set Input PMT 2")
-            right_slider = QSlider(Qt.Horizontal)
-            right_slider.setTickPosition(QSlider.TicksBelow)
+            self.right_slider = QSlider(Qt.Horizontal)
+            self.right_slider.setRange(0, 254)
+            self.right_slider.valueChanged.connect(self.PMT_2_voltage_func)
+            self.right_slider.setTickPosition(QSlider.TicksBelow)
             right_slider_layout.layout().addWidget(right_slider_label)
-            right_slider_layout.layout().addWidget(right_slider)
+            right_slider_layout.layout().addWidget(self.right_slider)
             right_input_layout.layout().addWidget(right_slider_layout)
             # voltage
             right_voltage_layout = QFrame()
             right_voltage_layout.setLayout(QVBoxLayout())
             right_voltage_label = QLabel("High Voltage PMT 2")
-            right_voltage = QLineEdit()
-            right_voltage.setFixedWidth(100)
-            right_voltage.setReadOnly(True)
+            self.right_voltage = QLineEdit()
+            self.right_voltage.setFixedWidth(100)
+            self.right_voltage.setReadOnly(True)
             right_voltage_layout.layout().addWidget(right_voltage_label)
-            right_voltage_layout.layout().addWidget(right_voltage)
+            right_voltage_layout.layout().addWidget(self.right_voltage)
             right_input_layout.layout().addWidget(right_voltage_layout)
             # add right input layout to right side layout
             right_frame.layout().addWidget(right_input_layout)
@@ -251,6 +275,7 @@ class user_interface(QMainWindow):
             left_frame_TL.setFrameShape(QFrame.StyledPanel)
             left_frame_TL.setLayout(QVBoxLayout())
             label_left_TL = QLabel("Photo Multiplier 1")
+            label_left_TL.setFont(bold_font)
             ##### TODO: decide on size of labels
             # label_left.setFont(QFont('Arial font', 11))
             left_frame_TL.layout().addWidget(label_left_TL)
@@ -262,21 +287,24 @@ class user_interface(QMainWindow):
             # slider
             left_slider_layout_TL = QFrame()
             left_slider_layout_TL.setLayout(QVBoxLayout())
-            #left_slider_label_TL = QLabel("Set Input PMT 1")
-            left_slider_TL = QSlider(Qt.Horizontal)
-            left_slider_TL.setTickPosition(QSlider.TicksBelow)
+            # left_slider_label_TL = QLabel("Set Input PMT 1")
+            self.left_slider_TL = QSlider(Qt.Horizontal)
+            self.left_slider_TL.setRange(0, 254)
+            self.left_slider_TL.setValue(101)
+            self.left_slider_TL.valueChanged.connect(self.threshold_voltage_ch_1_func)
+            self.left_slider_TL.setTickPosition(QSlider.TicksBelow)
             left_slider_layout_TL.layout().addWidget(QLabel("Set threshold voltage"))
-            left_slider_layout_TL.layout().addWidget(left_slider_TL)
+            left_slider_layout_TL.layout().addWidget(self.left_slider_TL)
             left_input_layout_TL.layout().addWidget(left_slider_layout_TL)
             # voltage
             left_voltage_layout_TL = QFrame()
             left_voltage_layout_TL.setLayout(QVBoxLayout())
             left_voltage_label_TL = QLabel("Threshold voltage (mV)")
-            left_voltage_TL = QLineEdit()
-            left_voltage_TL.setFixedWidth(100)
-            left_voltage_TL.setReadOnly(True)
+            self.left_voltage_TL = QLineEdit()
+            self.left_voltage_TL.setFixedWidth(100)
+            self.left_voltage_TL.setReadOnly(True)
             left_voltage_layout_TL.layout().addWidget(left_voltage_label_TL)
-            left_voltage_layout_TL.layout().addWidget(left_voltage_TL)
+            left_voltage_layout_TL.layout().addWidget(self.left_voltage_TL)
             left_input_layout_TL.layout().addWidget(left_voltage_layout_TL)
             # add left input layout to left side layout
             left_frame_TL.layout().addWidget(left_input_layout_TL)
@@ -290,6 +318,7 @@ class user_interface(QMainWindow):
             right_frame_TL.setFrameShape(QFrame.StyledPanel)
             right_frame_TL.setLayout(QVBoxLayout())
             label_right_TL = QLabel("Photo Multiplier 2")
+            label_right_TL.setFont(bold_font)
             ##### TODO: decide on size of labels
             # label_right.setFont(QFont('Arial font', 11))
             right_frame_TL.layout().addWidget(label_right_TL)
@@ -301,22 +330,23 @@ class user_interface(QMainWindow):
             # slider
             right_slider_layout_TL = QFrame()
             right_slider_layout_TL.setLayout(QVBoxLayout())
-            #right_slider_label_TL = QLabel("Set Input PMT 1")
-            right_slider_TL = QSlider(Qt.Horizontal)
-            right_slider_TL.setTickPosition(QSlider.TicksBelow)
-            #right_slider_layout_TL.layout().addWidget(right_slider_label_TL)
+            self.right_slider_TL = QSlider(Qt.Horizontal)
+            self.right_slider_TL.setRange(0, 254)
+            self.right_slider_TL.setValue(101)
+            self.right_slider_TL.valueChanged.connect(self.threshold_voltage_ch_2_func)
+            self.right_slider_TL.setTickPosition(QSlider.TicksBelow)
             right_slider_layout_TL.layout().addWidget(QLabel("Set threshold voltage"))
-            right_slider_layout_TL.layout().addWidget(right_slider_TL)
+            right_slider_layout_TL.layout().addWidget(self.right_slider_TL)
             right_input_layout_TL.layout().addWidget(right_slider_layout_TL)
             # voltage
             right_voltage_layout_TL = QFrame()
             right_voltage_layout_TL.setLayout(QVBoxLayout())
             right_voltage_label_TL = QLabel("Threshold voltage (mV)")
-            right_voltage_TL = QLineEdit()
-            right_voltage_TL.setFixedWidth(100)
-            right_voltage_TL.setReadOnly(True)
+            self.right_voltage_TL = QLineEdit()
+            self.right_voltage_TL.setFixedWidth(100)
+            self.right_voltage_TL.setReadOnly(True)
             right_voltage_layout_TL.layout().addWidget(right_voltage_label_TL)
-            right_voltage_layout_TL.layout().addWidget(right_voltage_TL)
+            right_voltage_layout_TL.layout().addWidget(self.right_voltage_TL)
             right_input_layout_TL.layout().addWidget(right_voltage_layout_TL)
             # add right input layout to right side layout
             right_frame_TL.layout().addWidget(right_input_layout_TL)
@@ -329,36 +359,36 @@ class user_interface(QMainWindow):
             tab_TL_layout_spaced.addLayout(tab_TL_layout)
             tab_TL_layout_spaced.addWidget(QLabel("                   "))
             tab_TL.setLayout(tab_TL_layout_spaced)
-            
+
             # add tab to tabs
             tabs.addTab(tab_TL, "Threshold Level")
 
         ##### TAB 3: LIFE TIME MEASUREMENT
-        # general layout: 
+        # general layout:
         #   left: adjust range, adjust bins, start/stop, reset display, reset counts
         #   right: histogram plot
         if set_LFT_tab:
-            
+
             tab_LFT = QWidget()
             # to change color:
-            #tab_LFT.setAutoFillBackground(True)
-            #tab_LFT.setPalette(palette_red)
+            # tab_LFT.setAutoFillBackground(True)
+            # tab_LFT.setPalette(palette_red)
             tab_LFT_layout = QHBoxLayout()
 
             # left side layout total
             left_frame_LFT = QFrame()
             left_frame_LFT.setLayout(QVBoxLayout())
-            
+
             # frame containing bins, start/stop, reset display
             frame_settings_LFT = QFrame()
             frame_settings_LFT.setFrameShape(QFrame.StyledPanel)
             frame_settings_LFT.setLayout(QVBoxLayout())
-           
+
             # slider to adjust horizontal range of plot
             slider_label_LFT = QLabel("Horizontal position")
             slider_LFT = QSlider(Qt.Horizontal)
             slider_LFT.setTickPosition(QSlider.TicksBelow)
-            
+
             frame_settings_LFT.layout().addWidget(slider_label_LFT)
             frame_settings_LFT.layout().addWidget(slider_LFT)
             frame_settings_LFT.layout().addWidget(QLabel("                   "))
@@ -389,13 +419,13 @@ class user_interface(QMainWindow):
             stop_button_LFT = QPushButton("Stop")
             stop_frame_LFT.layout().addWidget(QLabel("   "))
             stop_frame_LFT.layout().addWidget(stop_button_LFT)
-            
+
             status_frame_LFT = QFrame()
             status_frame_LFT.setLayout(QVBoxLayout())
             status_display_LFT = QLineEdit()
             status_display_LFT.setFixedWidth(100)
             status_display_LFT.setReadOnly(True)
-            
+
             status_frame_LFT.layout().addWidget(QLabel("Status"))
             status_frame_LFT.layout().addWidget(status_display_LFT)
 
@@ -452,7 +482,7 @@ class user_interface(QMainWindow):
 
             tab_LFT_layout.layout().addWidget(left_frame_LFT)
             tab_LFT_layout.layout().addWidget(plot_frame_LFT)
-            
+
             tab_LFT.setLayout(tab_LFT_layout)
 
             tabs.addTab(tab_LFT, "Life Time Measurement")
@@ -462,7 +492,7 @@ class user_interface(QMainWindow):
         #   left: start/stop, reset display
         #   right: histogram plot
         if set_DT_tab:
-           
+
             tab_DT = QWidget()
             tab_DT_layout = QHBoxLayout()
 
@@ -530,7 +560,7 @@ class user_interface(QMainWindow):
             display_DT.setLabel("bottom", "Time (us)")
 
             plot_frame_DT.layout().addWidget(display_DT)
-            
+
             tab_DT_layout.addWidget(left_frame_DT)
             tab_DT_layout.addWidget(plot_frame_DT)
 
@@ -543,7 +573,7 @@ class user_interface(QMainWindow):
         #   left: start/stop taking data, pre-trigger time, time displayed
         #   right: plot widget displaying digitised signal
         if set_WF_tab:
-            
+
             tab_WF = QWidget()
             tab_WF_layout = QHBoxLayout()
 
@@ -632,9 +662,335 @@ class user_interface(QMainWindow):
             tabs.addTab(tab_WF, "Waveform Channel 1")
 
         # TAB 6: HIT & COINCIDENCE RATE
-        ##### TODO
-        self.plot_widget_HC = pg.PlotWidget()
-        tabs.addTab(self.plot_widget_HC, "Hit & Coincidence rate")
+        # general layout: 
+        #   top: left: hit rate ch1/ch2, right: start/stop
+        #   bottom: left: coincidence rate ch1/ch2, right: start/stop
+        if set_HC_tab:
+            tab_HC = QWidget()
+            tab_HC_layout = QVBoxLayout()
+
+            # top panel: hit rate/settings
+            top_frame_HC = QFrame()
+            top_frame_HC.setFrameShape(QFrame.StyledPanel)
+            top_frame_HC.setLayout(QHBoxLayout())
+
+            # top left panel: hit rate
+            hit_rate_frame = QFrame()
+            hit_rate_frame.setFrameShape(QFrame.StyledPanel)
+            hit_rate_frame.setLayout(QVBoxLayout())
+
+            # hits ch1
+            hits_ch1_frame = QFrame()
+            hits_ch1_frame.setLayout(QHBoxLayout())
+            # hits in last second
+            hits_ls_ch1_frame = QFrame()
+            hits_ls_ch1_frame.setLayout(QVBoxLayout())
+            hits_ls_ch1 = QLineEdit()
+            hits_ls_ch1.setFixedWidth(100)
+            hits_ls_ch1.setReadOnly(True)
+
+            hits_ls_ch1_frame.layout().addWidget(QLabel("Hits in last second"))
+            hits_ls_ch1_frame.layout().addWidget(hits_ls_ch1)
+            # hits total
+            hits_tot_ch1_frame = QFrame()
+            hits_tot_ch1_frame.setLayout(QVBoxLayout())
+            hits_tot_ch1 = QLineEdit()
+            hits_tot_ch1.setFixedWidth(100)
+            hits_tot_ch1.setReadOnly(True)
+
+            hits_tot_ch1_frame.layout().addWidget(QLabel("Total hits"))
+            hits_tot_ch1_frame.layout().addWidget(hits_tot_ch1)
+            # hits/s average over run time
+            hits_avg_ch1_frame = QFrame()
+            hits_avg_ch1_frame.setLayout(QVBoxLayout())
+            hits_avg_ch1 = QLineEdit()
+            hits_avg_ch1.setFixedWidth(100)
+            hits_avg_ch1.setReadOnly(True)
+
+            hits_avg_ch1_frame.layout().addWidget(QLabel("Average number of hits \nper sec over run time"))
+            hits_avg_ch1_frame.layout().addWidget(hits_avg_ch1)
+
+            hits_ch1_frame.layout().addWidget(QLabel("Channel 1"))
+            hits_ch1_frame.layout().addWidget(hits_ls_ch1_frame)
+            hits_ch1_frame.layout().addWidget(hits_tot_ch1_frame)
+            hits_ch1_frame.layout().addWidget(hits_avg_ch1_frame)
+
+            # hits ch2
+            hits_ch2_frame = QFrame()
+            hits_ch2_frame.setLayout(QHBoxLayout())
+            # hits in last second
+            hits_ls_ch2_frame = QFrame()
+            hits_ls_ch2_frame.setLayout(QVBoxLayout())
+            hits_ls_ch2 = QLineEdit()
+            hits_ls_ch2.setFixedWidth(100)
+            hits_ls_ch2.setReadOnly(True)
+            
+            hits_ls_ch2_frame.layout().addWidget(QLabel("Hits in last second"))
+            hits_ls_ch2_frame.layout().addWidget(hits_ls_ch2)
+            # hits total
+            hits_tot_ch2_frame = QFrame()
+            hits_tot_ch2_frame.setLayout(QVBoxLayout())
+            hits_tot_ch2 = QLineEdit()
+            hits_tot_ch2.setFixedWidth(100)
+            hits_tot_ch2.setReadOnly(True)
+
+            hits_tot_ch2_frame.layout().addWidget(QLabel("Total hits"))
+            hits_tot_ch2_frame.layout().addWidget(hits_tot_ch2)
+            # hits/s average over total
+            hits_avg_ch2_frame = QFrame()
+            hits_avg_ch2_frame.setLayout(QVBoxLayout())
+            hits_avg_ch2 = QLineEdit()
+            hits_avg_ch2.setFixedWidth(100)
+            hits_avg_ch2.setReadOnly(True)
+
+            hits_avg_ch2_frame.layout().addWidget(QLabel("Average number of hits \nper sec over run time"))
+            hits_avg_ch2_frame.layout().addWidget(hits_avg_ch2)
+
+            hits_ch2_frame.layout().addWidget(QLabel("Channel 2"))
+            hits_ch2_frame.layout().addWidget(hits_ls_ch2_frame)
+            hits_ch2_frame.layout().addWidget(hits_tot_ch2_frame)
+            hits_ch2_frame.layout().addWidget(hits_avg_ch2_frame)
+
+            # hit rate settings
+            hit_rate_settings_frame = QFrame()
+            hit_rate_settings_frame.setFrameShape(QFrame.StyledPanel)
+            hit_rate_settings_frame.setLayout(QVBoxLayout())
+            # start/stop, status, reset
+            start_stop_frame_HC = QFrame()
+            start_stop_frame_HC.setLayout(QHBoxLayout())
+
+            start_frame_HC = QFrame()
+            start_frame_HC.setLayout(QVBoxLayout())
+            start_button_HC = QPushButton("Start")
+            start_frame_HC.layout().addWidget(QLabel("Record data"))
+            start_frame_HC.layout().addWidget(start_button_HC)
+
+            stop_frame_HC = QFrame()
+            stop_frame_HC.setLayout(QVBoxLayout())
+            stop_button_HC = QPushButton("Stop")
+            stop_frame_HC.layout().addWidget(QLabel("   "))
+            stop_frame_HC.layout().addWidget(stop_button_HC)
+
+            status_frame_HC = QFrame()
+            status_frame_HC.setLayout(QVBoxLayout())
+            status_display_HC = QLineEdit()
+            status_display_HC.setFixedWidth(100)
+            status_display_HC.setReadOnly(True)
+
+            status_frame_HC.layout().addWidget(QLabel("Status"))
+            status_frame_HC.layout().addWidget(status_display_HC)
+
+            reset_button_frame_HC = QFrame()
+            reset_button_frame_HC.setLayout(QVBoxLayout())
+            reset_button_HC = QPushButton("Reset")
+            reset_button_frame_HC.layout().addWidget(QLabel("  "))
+            reset_button_frame_HC.layout().addWidget(reset_button_HC)
+
+            start_stop_frame_HC.layout().addWidget(start_frame_HC)
+            start_stop_frame_HC.layout().addWidget(stop_frame_HC)
+            start_stop_frame_HC.layout().addWidget(status_frame_HC)
+            start_stop_frame_HC.layout().addWidget(reset_button_frame_HC)
+
+            # run time
+            run_time_HC_frame = QFrame()
+            run_time_HC_frame.setLayout(QVBoxLayout())
+            run_time_HC = QLineEdit()
+            run_time_HC.setFixedWidth(200)
+            run_time_HC.setReadOnly(True)
+            run_time_HC_frame.layout().addWidget(QLabel("Run time"))
+            run_time_HC_frame.layout().addWidget(run_time_HC)
+
+            hit_rate_settings_frame.layout().addWidget(start_stop_frame_HC)
+            hit_rate_settings_frame.layout().addWidget(run_time_HC_frame)
+
+            rate_label = QLabel("Hit rate")
+            rate_label.setFont(bold_font)
+            hit_rate_frame.layout().addWidget(rate_label)
+            hit_rate_frame.layout().addWidget(hits_ch1_frame)
+            hit_rate_frame.layout().addWidget(hits_ch2_frame)
+
+            top_frame_HC.layout().addWidget(hit_rate_frame)
+            top_frame_HC.layout().addWidget(hit_rate_settings_frame)
+
+            # bottom panel: coincidence rate/settings
+            bottom_frame_HC = QFrame()
+            bottom_frame_HC.setFrameShape(QFrame.StyledPanel)
+            bottom_frame_HC.setLayout(QHBoxLayout())
+
+            # bottom left panel: coincidence rate
+            coin_rate_frame = QFrame()
+            coin_rate_frame.setFrameShape(QFrame.StyledPanel)
+            coin_rate_frame.setLayout(QVBoxLayout())
+
+            coin_rates_horiz_frame = QFrame()
+            coin_rates_horiz_frame.setLayout(QHBoxLayout())
+
+            # total coincidences
+            coin_tot_frame = QFrame()
+            coin_tot_frame.setLayout(QVBoxLayout())
+            coin_tot = QLineEdit()
+            coin_tot.setFixedWidth(200)
+            coin_tot.setReadOnly(True)
+            coin_tot_frame.layout().addWidget(QLabel("Total coincidences"))
+            coin_tot_frame.layout().addWidget(coin_tot)
+
+            # average coincidences/s over run time
+            coin_avg_frame = QFrame()
+            coin_avg_frame.setLayout(QVBoxLayout())
+            coin_avg = QLineEdit()
+            coin_avg.setFixedWidth(200)
+            coin_avg.setReadOnly(True)
+            coin_avg_frame.layout().addWidget(QLabel("Average coincidences per \nsec over run time"))
+            coin_avg_frame.layout().addWidget(coin_avg)
+
+            coin_rates_horiz_frame.layout().addWidget(coin_tot_frame)
+            coin_rates_horiz_frame.layout().addWidget(coin_avg_frame)
+
+            coin_label = QLabel("Coincidences")
+            coin_label.setFont(bold_font)
+            coin_rate_frame.layout().addWidget(coin_label)
+            coin_rate_frame.layout().addWidget(coin_rates_horiz_frame)
+
+            # coincidence rate settings
+            coin_rate_settings_frame = QFrame()
+            coin_rate_settings_frame.setFrameShape(QFrame.StyledPanel)
+            coin_rate_settings_frame.setLayout(QVBoxLayout())
+            # start/stop, status, reset     _coin
+            start_stop_frame_coin_HC = QFrame()
+            start_stop_frame_coin_HC.setLayout(QHBoxLayout())
+
+            start_frame_coin_HC = QFrame()
+            start_frame_coin_HC.setLayout(QVBoxLayout())
+            start_button_coin_HC = QPushButton("Start")
+            start_frame_coin_HC.layout().addWidget(QLabel("Record data"))
+            start_frame_coin_HC.layout().addWidget(start_button_coin_HC)
+
+            stop_frame_coin_HC = QFrame()
+            stop_frame_coin_HC.setLayout(QVBoxLayout())
+            stop_button_coin_HC = QPushButton("Stop")
+            stop_frame_coin_HC.layout().addWidget(QLabel("   "))
+            stop_frame_coin_HC.layout().addWidget(stop_button_coin_HC)
+
+            status_frame_coin_HC = QFrame()
+            status_frame_coin_HC.setLayout(QVBoxLayout())
+            status_display_coin_HC = QLineEdit()
+            status_display_coin_HC.setFixedWidth(100)
+            status_display_coin_HC.setReadOnly(True)
+
+            status_frame_coin_HC.layout().addWidget(QLabel("Status"))
+            status_frame_coin_HC.layout().addWidget(status_display_coin_HC)
+
+            reset_button_frame_coin_HC = QFrame()
+            reset_button_frame_coin_HC.setLayout(QVBoxLayout())
+            reset_button_coin_HC = QPushButton("Reset")
+            reset_button_frame_coin_HC.layout().addWidget(QLabel("  "))
+            reset_button_frame_coin_HC.layout().addWidget(reset_button_coin_HC)
+
+            start_stop_frame_coin_HC.layout().addWidget(start_frame_coin_HC)
+            start_stop_frame_coin_HC.layout().addWidget(stop_frame_coin_HC)
+            start_stop_frame_coin_HC.layout().addWidget(status_frame_coin_HC)
+            start_stop_frame_coin_HC.layout().addWidget(reset_button_frame_coin_HC)
+
+            # run time
+            run_time_coin_HC_frame = QFrame()
+            run_time_coin_HC_frame.setLayout(QVBoxLayout())
+            run_time_coin_HC = QLineEdit()
+            run_time_coin_HC.setFixedWidth(200)
+            run_time_coin_HC.setReadOnly(True)
+            run_time_coin_HC_frame.layout().addWidget(QLabel("Run time"))
+            run_time_coin_HC_frame.layout().addWidget(run_time_coin_HC)
+
+            coin_rate_settings_frame.layout().addWidget(start_stop_frame_coin_HC)
+            coin_rate_settings_frame.layout().addWidget(run_time_coin_HC_frame)
+
+            bottom_frame_HC.layout().addWidget(coin_rate_frame)
+            bottom_frame_HC.layout().addWidget(coin_rate_settings_frame)
+
+            tab_HC_layout.addWidget(top_frame_HC)
+            tab_HC_layout.addWidget(bottom_frame_HC)
+
+            tab_HC.setLayout(tab_HC_layout)
+
+            tabs.addTab(tab_HC, "Hit and coincidence rate")
+        
+
+    def device_select_func(self):
+        """
+        Establishes connection with selected port
+        
+        """
+
+        self.device = self.device_select.currentText()
+
+        # close connection if a connection is established
+        if self.experiment:
+            self.experiment.device.close()
+
+        # initialise MuonLab III is right port is chosen
+        try:
+            self.experiment = MuonLab_experiment(port=self.device)
+
+            self.status_indicator.setText("CONNECTED")
+            self.left_voltage.setText("300.0")
+            self.right_voltage.setText("300.0")
+            self.left_voltage_TL.setText("151.0")
+            self.right_voltage_TL.setText("151.0")
+        except:
+            self.experiment = None
+            self.status_indicator.setText("NOT CONNECTED")
+            self.left_voltage.setText(" ")
+            self.right_voltage.setText(" ")
+            self.left_voltage_TL.setText(" ")
+            self.right_voltage_TL.setText(" ")
+            pass
+
+    def PMT_1_voltage_func(self):
+        """
+        Changes high voltage over channel 1 (PMT 1). Values are allowed in range(0, 254).
+        Voltage is calculated as: HV = 300+((nBit/255)*1500)
+        
+        """
+
+        value = self.left_slider.value()
+        display_value = str(round(300 + ((value / 255) * 1400), 0))
+        self.experiment.set_value_PMT_1(value)
+        self.left_voltage.setText(display_value)
+
+    def PMT_2_voltage_func(self):
+        """
+        Changes high voltage over channel 1 (PMT 1). Values are allowed in range(0, 254).
+        Voltage is calculated as: HV = 300+((nBit/255)*1500)
+        
+        """
+
+        value = self.right_slider.value()
+        display_value = str(round(300 + ((value / 255) * 1400), 0))
+        self.experiment.set_value_PMT_2(value)
+        self.right_voltage.setText(display_value)
+
+    def threshold_voltage_ch_1_func(self):
+        """
+        Changes threshold voltage on channel 1 (PMT 1). Values are allowed in range(0, 254).
+        Voltage is calculated as: V = (nBit/255)*380mV
+        
+        """
+
+        value = self.left_slider_TL.value()
+        display_value = str(round((value / 255) * 380, 0))
+        self.experiment.set_threshold_ch_1(value)
+        self.left_voltage_TL.setText(display_value)
+
+    def threshold_voltage_ch_2_func(self):
+        """
+        Changes threshold voltage on channel 1 (PMT 1). Values are allowed in range(0, 254).
+        Voltage is calculated as: V = (nBit/255)*380mV
+        
+        """
+
+        value = self.right_slider_TL.value()
+        display_value = str(round((value / 255) * 380, 0))
+        self.experiment.set_threshold_ch_2(value)
+        self.right_voltage_TL.setText(display_value)
 
 
 if __name__ == "__main__":
