@@ -1,12 +1,13 @@
+from datetime import datetime, timedelta
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5.QtCore import Qt
-from matplotlib.cbook import boxplot_stats
+from PyQt5.QtCore import Qt, QTimer
 from matplotlib.ft2font import HORIZONTAL
 import pyqtgraph as pg
 import sys
-import matplotlib.pyplot as plt
-from zmq import device
+import threading
+import numpy as np
+
 from MuonLab_controller import list_devices, MuonLab_experiment
 
 # set general options for plots
@@ -99,7 +100,6 @@ class user_interface(QMainWindow):
         device_vbox.addWidget(self.device_select)
 
         # add status indicator
-        ##### TODO: make change according to connection with muonlab
         self.status_indicator = QLineEdit()
         self.status_indicator.setFixedWidth(150)
         self.status_indicator.setReadOnly(True)
@@ -123,22 +123,23 @@ class user_interface(QMainWindow):
         counts2_vbox.setLayout(QVBoxLayout())
 
         # create text boxes to display counts
-        box_counts_1 = QLineEdit()
-        box_counts_1.setFixedWidth(100)
-        box_counts_1.setReadOnly(True)
+        self.box_counts_1 = QLineEdit()
+        self.box_counts_1.setFixedWidth(100)
+        self.box_counts_1.setReadOnly(True)
+
         label_box_counts1 = QLabel("Counts/s PMT 1 \n last 10 sec average")
 
-        box_counts_2 = QLineEdit()
-        box_counts_2.setFixedWidth(100)
-        box_counts_2.setReadOnly(True)
+        self.box_counts_2 = QLineEdit()
+        self.box_counts_2.setFixedWidth(100)
+        self.box_counts_2.setReadOnly(True)
         label_box_counts2 = QLabel("Counts/s PMT 2 \n last 10sec average")
 
         # add counts to individual layouts
         counts1_vbox.layout().addWidget(label_box_counts1)
-        counts1_vbox.layout().addWidget(box_counts_1)
+        counts1_vbox.layout().addWidget(self.box_counts_1)
 
         counts2_vbox.layout().addWidget(label_box_counts2)
-        counts2_vbox.layout().addWidget(box_counts_2)
+        counts2_vbox.layout().addWidget(self.box_counts_2)
         # add count layouts to top bar layout
         top_bar_hbox.addWidget(counts1_vbox)
         # add spacer
@@ -662,7 +663,7 @@ class user_interface(QMainWindow):
             tabs.addTab(tab_WF, "Waveform Channel 1")
 
         # TAB 6: HIT & COINCIDENCE RATE
-        # general layout: 
+        # general layout:
         #   top: left: hit rate ch1/ch2, right: start/stop
         #   bottom: left: coincidence rate ch1/ch2, right: start/stop
         if set_HC_tab:
@@ -707,7 +708,9 @@ class user_interface(QMainWindow):
             hits_avg_ch1.setFixedWidth(100)
             hits_avg_ch1.setReadOnly(True)
 
-            hits_avg_ch1_frame.layout().addWidget(QLabel("Average number of hits \nper sec over run time"))
+            hits_avg_ch1_frame.layout().addWidget(
+                QLabel("Average number of hits \nper sec over run time")
+            )
             hits_avg_ch1_frame.layout().addWidget(hits_avg_ch1)
 
             hits_ch1_frame.layout().addWidget(QLabel("Channel 1"))
@@ -724,7 +727,7 @@ class user_interface(QMainWindow):
             hits_ls_ch2 = QLineEdit()
             hits_ls_ch2.setFixedWidth(100)
             hits_ls_ch2.setReadOnly(True)
-            
+
             hits_ls_ch2_frame.layout().addWidget(QLabel("Hits in last second"))
             hits_ls_ch2_frame.layout().addWidget(hits_ls_ch2)
             # hits total
@@ -743,7 +746,9 @@ class user_interface(QMainWindow):
             hits_avg_ch2.setFixedWidth(100)
             hits_avg_ch2.setReadOnly(True)
 
-            hits_avg_ch2_frame.layout().addWidget(QLabel("Average number of hits \nper sec over run time"))
+            hits_avg_ch2_frame.layout().addWidget(
+                QLabel("Average number of hits \nper sec over run time")
+            )
             hits_avg_ch2_frame.layout().addWidget(hits_avg_ch2)
 
             hits_ch2_frame.layout().addWidget(QLabel("Channel 2"))
@@ -840,7 +845,9 @@ class user_interface(QMainWindow):
             coin_avg = QLineEdit()
             coin_avg.setFixedWidth(200)
             coin_avg.setReadOnly(True)
-            coin_avg_frame.layout().addWidget(QLabel("Average coincidences per \nsec over run time"))
+            coin_avg_frame.layout().addWidget(
+                QLabel("Average coincidences per \nsec over run time")
+            )
             coin_avg_frame.layout().addWidget(coin_avg)
 
             coin_rates_horiz_frame.layout().addWidget(coin_tot_frame)
@@ -912,7 +919,20 @@ class user_interface(QMainWindow):
             tab_HC.setLayout(tab_HC_layout)
 
             tabs.addTab(tab_HC, "Hit and coincidence rate")
-        
+
+        test = QFrame()
+        test.setLayout(QHBoxLayout())
+        test_button = QPushButton("Run")
+        test_button.clicked.connect(self.test_coincidences)
+        self.test_plot = pg.PlotWidget()
+
+        self.plot_timer = QTimer()
+        self.plot_timer.timeout.connect(self.test_plot_coincidences)
+        self.plot_timer.start(1000)
+
+        test.layout().addWidget(test_button)
+        test.layout().addWidget(self.test_plot)
+        tabs.addTab(test, "test")
 
     def device_select_func(self):
         """
@@ -926,7 +946,8 @@ class user_interface(QMainWindow):
         if self.experiment:
             self.experiment.device.close()
 
-        # initialise MuonLab III is right port is chosen
+        # initialise MuonLab III is right port is chosen and
+        # initialise threading
         try:
             self.experiment = MuonLab_experiment(port=self.device)
 
@@ -935,6 +956,24 @@ class user_interface(QMainWindow):
             self.right_voltage.setText("300.0")
             self.left_voltage_TL.setText("151.0")
             self.right_voltage_TL.setText("151.0")
+
+            # timers to update set widgets every second
+            self.box_counts_1_timer = QTimer()
+            self.box_counts_1_timer.start(500)
+            self.box_counts_1_timer.timeout.connect(self.box_counts_1_func)
+
+            self.box_counts_2_timer = QTimer()
+            self.box_counts_2_timer.start(500)
+            self.box_counts_2_timer.timeout.connect(self.box_counts_2_func)
+
+
+
+            ##### THREADING #####
+            self.main_thread = threading.Thread(
+                target=self.experiment.data_acquisition, args=(1,)
+            )
+            self.main_thread.start()
+
         except:
             self.experiment = None
             self.status_indicator.setText("NOT CONNECTED")
@@ -943,6 +982,22 @@ class user_interface(QMainWindow):
             self.left_voltage_TL.setText(" ")
             self.right_voltage_TL.setText(" ")
             pass
+
+    def box_counts_1_func(self):
+        """
+        Sets average hit count of channel 1 in top bar
+        
+        """
+        last_avg = str(round(np.mean(self.experiment.hits_ch1_last_10), 1))
+        self.box_counts_1.setText(last_avg)
+
+    def box_counts_2_func(self):
+        """
+        Sets average hit count of channel 2 in top bar
+        
+        """
+        last_avg = str(round(np.mean(self.experiment.hits_ch2_last_10), 1))
+        self.box_counts_2.setText(last_avg)
 
     def PMT_1_voltage_func(self):
         """
@@ -992,6 +1047,16 @@ class user_interface(QMainWindow):
         self.experiment.set_threshold_ch_2(value)
         self.right_voltage_TL.setText(display_value)
 
+    def test_coincidences(self):
+        self.test_plot_coincidences()
+
+    def test_plot_coincidences(self):
+        """
+        Temporary TEST function, plots counts, to be removed
+
+        """
+        self.test_plot.clear()
+        self.test_plot.plot(range(10), self.experiment.hits_ch1_last_10)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
