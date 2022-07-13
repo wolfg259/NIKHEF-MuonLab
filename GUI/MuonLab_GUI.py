@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
+from pickle import FALSE
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QTimer
-from matplotlib.ft2font import HORIZONTAL
 import pyqtgraph as pg
 import sys
 import threading
@@ -27,9 +27,9 @@ class user_interface(QMainWindow):
         set_PMV_tab=True,
         set_TL_tab=True,
         set_LFT_tab=True,
-        set_DT_tab=True,
-        set_WF_tab=True,
-        set_HC_tab=True,
+        set_DT_tab=False, #True,
+        set_WF_tab=False, #True,
+        set_HC_tab=False
     ):
         super().__init__()
 
@@ -474,12 +474,14 @@ class user_interface(QMainWindow):
             plot_frame_LFT.setPalette(palette_white)
             plot_frame_LFT.setLayout(QVBoxLayout())
             plot_frame_LFT.setFrameShape(QFrame.StyledPanel)
-            display_LFT = pg.PlotWidget()
-            display_LFT.setLabel("left", "Counts")
-            display_LFT.setLabel("bottom", "Time (us)")
+            self.display_LFT = pg.PlotWidget()
+            self.bar_graph_LFT = pg.BarGraphItem()
+            self.display_LFT.addItem(self.bar_graph_LFT)
+            self.display_LFT.setLabel("left", "Counts")
+            self.display_LFT.setLabel("bottom", "Time (us)")
 
             plot_frame_LFT.layout().addWidget(left_frame_LFT)
-            plot_frame_LFT.layout().addWidget(display_LFT)
+            plot_frame_LFT.layout().addWidget(self.display_LFT)
 
             tab_LFT_layout.layout().addWidget(left_frame_LFT)
             tab_LFT_layout.layout().addWidget(plot_frame_LFT)
@@ -686,32 +688,32 @@ class user_interface(QMainWindow):
             # hits in last second
             hits_ls_ch1_frame = QFrame()
             hits_ls_ch1_frame.setLayout(QVBoxLayout())
-            hits_ls_ch1 = QLineEdit()
-            hits_ls_ch1.setFixedWidth(100)
-            hits_ls_ch1.setReadOnly(True)
+            self.hits_ls_ch1 = QLineEdit()
+            self.hits_ls_ch1.setFixedWidth(100)
+            self.hits_ls_ch1.setReadOnly(True)
 
             hits_ls_ch1_frame.layout().addWidget(QLabel("Hits in last second"))
-            hits_ls_ch1_frame.layout().addWidget(hits_ls_ch1)
+            hits_ls_ch1_frame.layout().addWidget(self.hits_ls_ch1)
             # hits total
             hits_tot_ch1_frame = QFrame()
             hits_tot_ch1_frame.setLayout(QVBoxLayout())
-            hits_tot_ch1 = QLineEdit()
-            hits_tot_ch1.setFixedWidth(100)
-            hits_tot_ch1.setReadOnly(True)
+            self.hits_tot_ch1 = QLineEdit()
+            self.hits_tot_ch1.setFixedWidth(100)
+            self.hits_tot_ch1.setReadOnly(True)
 
             hits_tot_ch1_frame.layout().addWidget(QLabel("Total hits"))
-            hits_tot_ch1_frame.layout().addWidget(hits_tot_ch1)
+            hits_tot_ch1_frame.layout().addWidget(self.hits_tot_ch1)
             # hits/s average over run time
             hits_avg_ch1_frame = QFrame()
             hits_avg_ch1_frame.setLayout(QVBoxLayout())
-            hits_avg_ch1 = QLineEdit()
-            hits_avg_ch1.setFixedWidth(100)
-            hits_avg_ch1.setReadOnly(True)
+            self.hits_avg_ch1 = QLineEdit()
+            self.hits_avg_ch1.setFixedWidth(100)
+            self.hits_avg_ch1.setReadOnly(True)
 
             hits_avg_ch1_frame.layout().addWidget(
                 QLabel("Average number of hits \nper sec over run time")
             )
-            hits_avg_ch1_frame.layout().addWidget(hits_avg_ch1)
+            hits_avg_ch1_frame.layout().addWidget(self.hits_avg_ch1)
 
             hits_ch1_frame.layout().addWidget(QLabel("Channel 1"))
             hits_ch1_frame.layout().addWidget(hits_ls_ch1_frame)
@@ -724,32 +726,32 @@ class user_interface(QMainWindow):
             # hits in last second
             hits_ls_ch2_frame = QFrame()
             hits_ls_ch2_frame.setLayout(QVBoxLayout())
-            hits_ls_ch2 = QLineEdit()
-            hits_ls_ch2.setFixedWidth(100)
-            hits_ls_ch2.setReadOnly(True)
+            self.hits_ls_ch2 = QLineEdit()
+            self.hits_ls_ch2.setFixedWidth(100)
+            self.hits_ls_ch2.setReadOnly(True)
 
             hits_ls_ch2_frame.layout().addWidget(QLabel("Hits in last second"))
-            hits_ls_ch2_frame.layout().addWidget(hits_ls_ch2)
+            hits_ls_ch2_frame.layout().addWidget(self.hits_ls_ch2)
             # hits total
             hits_tot_ch2_frame = QFrame()
             hits_tot_ch2_frame.setLayout(QVBoxLayout())
-            hits_tot_ch2 = QLineEdit()
-            hits_tot_ch2.setFixedWidth(100)
-            hits_tot_ch2.setReadOnly(True)
+            self.hits_tot_ch2 = QLineEdit()
+            self.hits_tot_ch2.setFixedWidth(100)
+            self.hits_tot_ch2.setReadOnly(True)
 
             hits_tot_ch2_frame.layout().addWidget(QLabel("Total hits"))
-            hits_tot_ch2_frame.layout().addWidget(hits_tot_ch2)
+            hits_tot_ch2_frame.layout().addWidget(self.hits_tot_ch2)
             # hits/s average over total
             hits_avg_ch2_frame = QFrame()
             hits_avg_ch2_frame.setLayout(QVBoxLayout())
-            hits_avg_ch2 = QLineEdit()
-            hits_avg_ch2.setFixedWidth(100)
-            hits_avg_ch2.setReadOnly(True)
+            self.hits_avg_ch2 = QLineEdit()
+            self.hits_avg_ch2.setFixedWidth(100)
+            self.hits_avg_ch2.setReadOnly(True)
 
             hits_avg_ch2_frame.layout().addWidget(
                 QLabel("Average number of hits \nper sec over run time")
             )
-            hits_avg_ch2_frame.layout().addWidget(hits_avg_ch2)
+            hits_avg_ch2_frame.layout().addWidget(self.hits_avg_ch2)
 
             hits_ch2_frame.layout().addWidget(QLabel("Channel 2"))
             hits_ch2_frame.layout().addWidget(hits_ls_ch2_frame)
@@ -764,32 +766,40 @@ class user_interface(QMainWindow):
             start_stop_frame_HC = QFrame()
             start_stop_frame_HC.setLayout(QHBoxLayout())
 
+            # start
             start_frame_HC = QFrame()
             start_frame_HC.setLayout(QVBoxLayout())
-            start_button_HC = QPushButton("Start")
+            self.start_button_HC = QPushButton("Start")
+            self.start_button_HC.clicked.connect(self.start_hit_rate_func)
             start_frame_HC.layout().addWidget(QLabel("Record data"))
-            start_frame_HC.layout().addWidget(start_button_HC)
+            start_frame_HC.layout().addWidget(self.start_button_HC)
 
+            # stop
             stop_frame_HC = QFrame()
             stop_frame_HC.setLayout(QVBoxLayout())
-            stop_button_HC = QPushButton("Stop")
+            self.stop_button_HC = QPushButton("Stop")
+            self.stop_button_HC.clicked.connect(self.stop_hit_rate_func)
             stop_frame_HC.layout().addWidget(QLabel("   "))
-            stop_frame_HC.layout().addWidget(stop_button_HC)
+            stop_frame_HC.layout().addWidget(self.stop_button_HC)
 
+            # status
             status_frame_HC = QFrame()
             status_frame_HC.setLayout(QVBoxLayout())
-            status_display_HC = QLineEdit()
-            status_display_HC.setFixedWidth(100)
-            status_display_HC.setReadOnly(True)
+            self.status_display_HC = QLineEdit()
+            self.status_display_HC.setFixedWidth(100)
+            self.status_display_HC.setReadOnly(True)
+            self.status_display_HC.setText("STOPPED")
 
             status_frame_HC.layout().addWidget(QLabel("Status"))
-            status_frame_HC.layout().addWidget(status_display_HC)
-
+            status_frame_HC.layout().addWidget(self.status_display_HC)
+            
+            # reset
             reset_button_frame_HC = QFrame()
             reset_button_frame_HC.setLayout(QVBoxLayout())
-            reset_button_HC = QPushButton("Reset")
+            self.reset_button_HC = QPushButton("Reset")
+            self.reset_button_HC.clicked.connect(self.reset_hit_rate_func)
             reset_button_frame_HC.layout().addWidget(QLabel("  "))
-            reset_button_frame_HC.layout().addWidget(reset_button_HC)
+            reset_button_frame_HC.layout().addWidget(self.reset_button_HC)
 
             start_stop_frame_HC.layout().addWidget(start_frame_HC)
             start_stop_frame_HC.layout().addWidget(stop_frame_HC)
@@ -799,11 +809,11 @@ class user_interface(QMainWindow):
             # run time
             run_time_HC_frame = QFrame()
             run_time_HC_frame.setLayout(QVBoxLayout())
-            run_time_HC = QLineEdit()
-            run_time_HC.setFixedWidth(200)
-            run_time_HC.setReadOnly(True)
+            self.run_time_HC = QLineEdit()
+            self.run_time_HC.setFixedWidth(200)
+            self.run_time_HC.setReadOnly(True)
             run_time_HC_frame.layout().addWidget(QLabel("Run time"))
-            run_time_HC_frame.layout().addWidget(run_time_HC)
+            run_time_HC_frame.layout().addWidget(self.run_time_HC)
 
             hit_rate_settings_frame.layout().addWidget(start_stop_frame_HC)
             hit_rate_settings_frame.layout().addWidget(run_time_HC_frame)
@@ -833,22 +843,22 @@ class user_interface(QMainWindow):
             # total coincidences
             coin_tot_frame = QFrame()
             coin_tot_frame.setLayout(QVBoxLayout())
-            coin_tot = QLineEdit()
-            coin_tot.setFixedWidth(200)
-            coin_tot.setReadOnly(True)
+            self.coin_tot = QLineEdit()
+            self.coin_tot.setFixedWidth(200)
+            self.coin_tot.setReadOnly(True)
             coin_tot_frame.layout().addWidget(QLabel("Total coincidences"))
-            coin_tot_frame.layout().addWidget(coin_tot)
+            coin_tot_frame.layout().addWidget(self.coin_tot)
 
             # average coincidences/s over run time
             coin_avg_frame = QFrame()
             coin_avg_frame.setLayout(QVBoxLayout())
-            coin_avg = QLineEdit()
-            coin_avg.setFixedWidth(200)
-            coin_avg.setReadOnly(True)
+            self.coin_avg = QLineEdit()
+            self.coin_avg.setFixedWidth(200)
+            self.coin_avg.setReadOnly(True)
             coin_avg_frame.layout().addWidget(
                 QLabel("Average coincidences per \nsec over run time")
             )
-            coin_avg_frame.layout().addWidget(coin_avg)
+            coin_avg_frame.layout().addWidget(self.coin_avg)
 
             coin_rates_horiz_frame.layout().addWidget(coin_tot_frame)
             coin_rates_horiz_frame.layout().addWidget(coin_avg_frame)
@@ -866,32 +876,39 @@ class user_interface(QMainWindow):
             start_stop_frame_coin_HC = QFrame()
             start_stop_frame_coin_HC.setLayout(QHBoxLayout())
 
+            # start
             start_frame_coin_HC = QFrame()
             start_frame_coin_HC.setLayout(QVBoxLayout())
-            start_button_coin_HC = QPushButton("Start")
+            self.start_button_coin_HC = QPushButton("Start")
+            self.start_button_coin_HC.clicked.connect(self.start_coincidence_func)
             start_frame_coin_HC.layout().addWidget(QLabel("Record data"))
-            start_frame_coin_HC.layout().addWidget(start_button_coin_HC)
+            start_frame_coin_HC.layout().addWidget(self.start_button_coin_HC)
 
+            # stop
             stop_frame_coin_HC = QFrame()
             stop_frame_coin_HC.setLayout(QVBoxLayout())
-            stop_button_coin_HC = QPushButton("Stop")
+            self.stop_button_coin_HC = QPushButton("Stop")
+            self.stop_button_coin_HC.clicked.connect(self.stop_coincidence_func)
             stop_frame_coin_HC.layout().addWidget(QLabel("   "))
-            stop_frame_coin_HC.layout().addWidget(stop_button_coin_HC)
+            stop_frame_coin_HC.layout().addWidget(self.stop_button_coin_HC)
 
+            # status
             status_frame_coin_HC = QFrame()
             status_frame_coin_HC.setLayout(QVBoxLayout())
-            status_display_coin_HC = QLineEdit()
-            status_display_coin_HC.setFixedWidth(100)
-            status_display_coin_HC.setReadOnly(True)
+            self.status_display_coin_HC = QLineEdit()
+            self.status_display_coin_HC.setFixedWidth(100)
+            self.status_display_coin_HC.setReadOnly(True)
 
             status_frame_coin_HC.layout().addWidget(QLabel("Status"))
-            status_frame_coin_HC.layout().addWidget(status_display_coin_HC)
+            status_frame_coin_HC.layout().addWidget(self.status_display_coin_HC)
 
+            # reset
             reset_button_frame_coin_HC = QFrame()
             reset_button_frame_coin_HC.setLayout(QVBoxLayout())
-            reset_button_coin_HC = QPushButton("Reset")
+            self.reset_button_coin_HC = QPushButton("Reset")
+            self.reset_button_coin_HC.clicked.connect(self.reset_coincidence_func)
             reset_button_frame_coin_HC.layout().addWidget(QLabel("  "))
-            reset_button_frame_coin_HC.layout().addWidget(reset_button_coin_HC)
+            reset_button_frame_coin_HC.layout().addWidget(self.reset_button_coin_HC)
 
             start_stop_frame_coin_HC.layout().addWidget(start_frame_coin_HC)
             start_stop_frame_coin_HC.layout().addWidget(stop_frame_coin_HC)
@@ -901,11 +918,11 @@ class user_interface(QMainWindow):
             # run time
             run_time_coin_HC_frame = QFrame()
             run_time_coin_HC_frame.setLayout(QVBoxLayout())
-            run_time_coin_HC = QLineEdit()
-            run_time_coin_HC.setFixedWidth(200)
-            run_time_coin_HC.setReadOnly(True)
+            self.run_time_coin_HC = QLineEdit()
+            self.run_time_coin_HC.setFixedWidth(200)
+            self.run_time_coin_HC.setReadOnly(True)
             run_time_coin_HC_frame.layout().addWidget(QLabel("Run time"))
-            run_time_coin_HC_frame.layout().addWidget(run_time_coin_HC)
+            run_time_coin_HC_frame.layout().addWidget(self.run_time_coin_HC)
 
             coin_rate_settings_frame.layout().addWidget(start_stop_frame_coin_HC)
             coin_rate_settings_frame.layout().addWidget(run_time_coin_HC_frame)
@@ -934,6 +951,9 @@ class user_interface(QMainWindow):
         test.layout().addWidget(self.test_plot)
         tabs.addTab(test, "test")
 
+
+    ##### FUNCTIONS #####
+    ##### TOP BAR #####
     def device_select_func(self):
         """
         Establishes connection with selected port
@@ -942,11 +962,11 @@ class user_interface(QMainWindow):
 
         self.device = self.device_select.currentText()
 
-        # close connection if a connection is established
+        # close connection if a connection is already established
         if self.experiment:
             self.experiment.device.close()
 
-        # initialise MuonLab III is right port is chosen and
+        # initialise MuonLab III if right port is chosen and
         # initialise threading
         try:
             self.experiment = MuonLab_experiment(port=self.device)
@@ -970,10 +990,11 @@ class user_interface(QMainWindow):
 
             ##### THREADING #####
             self.main_thread = threading.Thread(
-                target=self.experiment.data_acquisition, args=(1,)
+                target=self.experiment.data_acquisition, args=()
             )
             self.main_thread.start()
 
+        # if no connection can be established
         except:
             self.experiment = None
             self.status_indicator.setText("NOT CONNECTED")
@@ -998,7 +1019,10 @@ class user_interface(QMainWindow):
         """
         last_avg = str(round(np.mean(self.experiment.hits_ch2_last_10), 1))
         self.box_counts_2.setText(last_avg)
+    ##########
 
+
+    ##### TAB: PHOTO MULTIPLIER VOLTAGE
     def PMT_1_voltage_func(self):
         """
         Changes high voltage over channel 1 (PMT 1). Values are allowed in range(0, 254).
@@ -1022,7 +1046,10 @@ class user_interface(QMainWindow):
         display_value = str(round(300 + ((value / 255) * 1400), 0))
         self.experiment.set_value_PMT_2(value)
         self.right_voltage.setText(display_value)
+    ##########
 
+
+    ##### TAB: THRESHOLD VOLTAGE #####
     def threshold_voltage_ch_1_func(self):
         """
         Changes threshold voltage on channel 1 (PMT 1). Values are allowed in range(0, 254).
@@ -1046,8 +1073,199 @@ class user_interface(QMainWindow):
         display_value = str(round((value / 255) * 380, 0))
         self.experiment.set_threshold_ch_2(value)
         self.right_voltage_TL.setText(display_value)
+    ##########
+
+
+    ##### TAB: LIFETIME MEASUREMENT #####
+    def start_lifetime_func(self):
+        """
+        Starts lifetime measurement and data collection
+        
+        """
+
+        # reset all current values
+        self.experiment.lifetimes = []
+
+        # create timer to update plot
+        self.lifetime_timer = QTimer()
+        self.lifetime_timer.start(1000)
+        self.lifetime_timer.timeout.connect(self.update_lifetime_func)
+
+    def update_lifetime_func(self):
+        """ 
+        Updates plots and total events in lifetime tab
+        
+        """
+
+        # get values
+        lifetimes = self.experiment.lifetimes
+        
+    ##########
+
+
+    ##### TAB: HIT AND COINCIDENCE RATE #####
+    def start_hit_rate_func(self):
+        """
+        Starts hit rate measurements and data collection
+        
+        """
+
+        ##### TODO: data collection
+        # reset all values
+        self.reset_hit_rate_func()
+        
+        # create timer to update all three hit boxes
+        self.hit_rate_timer = QTimer()
+        self.hit_rate_timer.start(100)
+        self.hit_rate_timer.timeout.connect(self.update_hit_rate_func)
+
+        # determine start time to monitor runtime
+        self.hit_rate_start_t = datetime.now()
+
+        # set status indicator
+        self.status_display_HC.setText("RUNNING")
+
+    def stop_hit_rate_func(self):
+        """
+        Stops hit rate measurement
+        
+        """
+
+        # stop automatic updating
+        self.hit_rate_timer.disconnect()
+
+        # update status display
+        self.status_display_HC.setText("STOPPED")
+
+    def reset_hit_rate_func(self):
+        """
+        Resets values in hit rate measurement
+        
+        """
+
+        # set all associated attributes of controller to zero
+        self.experiment.hit_byte_counter = 0
+
+        self.experiment.hits_ch1_total = 0
+        self.experiment.hits_ch1_last_10 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.experiment.hits_ch1_avg = 0
+
+        self.experiment.hits_ch2_total = 0
+        self.experiment.hits_ch2_last_10 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.experiment.hits_ch2_avg = 0
+
+        # reset runtime
+        self.hit_rate_start_t = datetime.now()
+        zero_time = timedelta(seconds=0)
+        self.run_time_HC.setText(str(zero_time))
+
+    def update_hit_rate_func(self):
+        """
+        Sets values in hit rate boxes in hit rate and coincidence tab
+        
+        """
+        
+        # get values
+        # channel 1
+        hits_in_last_second_ch1 = str(self.experiment.hits_ch1_last_10[-1])
+        hits_total_ch1 = str(self.experiment.hits_ch1_total)
+        hits_avg_ch1 = str(round(self.experiment.hits_ch1_avg, 1))
+
+        # channel 2
+        hits_in_last_second_ch2 = str(self.experiment.hits_ch2_last_10[-1])
+        hits_total_ch2 = str(self.experiment.hits_ch2_total)
+        hits_avg_ch2 = str(round(self.experiment.hits_ch2_avg, 1))
+
+        # set display values
+        # channel 1
+        self.hits_ls_ch1.setText(hits_in_last_second_ch1)
+        self.hits_tot_ch1.setText(hits_total_ch1)
+        self.hits_avg_ch1.setText(hits_avg_ch1)
+
+        # channel 2
+        self.hits_ls_ch2.setText(hits_in_last_second_ch2)
+        self.hits_tot_ch2.setText(hits_total_ch2)
+        self.hits_avg_ch2.setText(hits_avg_ch2)
+
+        # runtime
+        runtime = str(datetime.now() - self.hit_rate_start_t)
+        self.run_time_HC.setText(runtime)
+        
+    def start_coincidence_func(self):
+        """
+        Starts coincident hit measurements and data collection
+        
+        """
+
+        # reset all values
+        self.reset_coincidence_func()
+
+        # sets MuonLab to measure coincidences
+        self.experiment.set_measurement(coincidence=True)
+
+        # create timer to update both coincidence boxes
+        self.coincidence_timer = QTimer()
+        self.coincidence_timer.start(100)
+        self.coincidence_timer.timeout.connect(self.update_coincidence_func)
+
+        # determine start time to monitor runtime
+        self.coincidence_start_t = datetime.now()
+
+        # set status indicator
+        self.status_display_coin_HC.setText("RUNNING")
+
+    def stop_coincidence_func(self):
+        """
+        Stops coincident hits measurement
+
+        """
+
+        # stop automatic updating
+        self.coincidence_timer.disconnect()
+
+        # sets MuonLab to stop measuring coincidences
+        self.experiment.set_measurement(coincidence=False)
+
+        # update status display
+        self.status_display_coin_HC.setText("STOPPED")
+
+    def reset_coincidence_func(self):
+        """
+        Resets values in coincident hits measurement
+        
+        """
+
+        # set all associated attributes of controller to zero
+        self.experiment.coincidences = 0
+
+        # reset runtime
+        self.coincidence_start_t = datetime.now()
+        zero_time = timedelta(seconds=0)
+        self.run_time_coin_HC.setText(str(zero_time))
+
+    def update_coincidence_func(self):
+        """
+        Sets values in coincidence boxes in hit rate and coincidence tab
+        
+        """
+
+        # get values
+        coincidences = self.experiment.coincidences
+        runtime = datetime.now() - self.coincidence_start_t
+        runtime_in_sec = runtime.total_seconds()
+        coincidences_per_sec = round(coincidences / runtime_in_sec, 2)
+
+        # set display values
+        self.coin_tot.setText(str(coincidences))
+        self.coin_avg.setText(str(coincidences_per_sec))
+
+        # runtime
+        self.run_time_coin_HC.setText(str(runtime))
+    ##########
+
 
     def test_coincidences(self):
+
         self.test_plot_coincidences()
 
     def test_plot_coincidences(self):
