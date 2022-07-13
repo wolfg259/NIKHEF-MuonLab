@@ -45,6 +45,12 @@ class MuonLab_experiment:
         # lifetime data
         self.lifetimes = []
 
+        # delta time data
+        self.delta_times = []
+
+        # digitised input signal
+        self.input_signal = []
+
         # hit rate data
         # counter to help with calculating average while saving
         self.hit_byte_counter = 0
@@ -108,7 +114,7 @@ class MuonLab_experiment:
         message = b"\x99" + b"\x17" + bytes([value]) + b"\x66"
         self.device.write(message)
 
-    def set_measurement(self, lifetime=None, delta_time=None, signal=None, coincidence=None):
+    def set_measurement(self, lifetime=None, delta_time=None, waveform=None, coincidence=None):
         """
         Select which measurements the MuonLab will perform by setting desired 
         measurement(s) to True or False. 
@@ -122,7 +128,7 @@ class MuonLab_experiment:
         
         """
 
-        # calculate decimal value of selection message byte
+        # calculate decimal value of selection message byte, leave as is if not specified
         if lifetime == True:
             self.measure_lifetime = 1
         if lifetime == False:
@@ -133,9 +139,9 @@ class MuonLab_experiment:
         if delta_time == False:
             self.measure_delta_time = 0
 
-        if signal == True:
+        if waveform == True:
             self.measure_analog_input = 4
-        if signal == False:
+        if waveform == False:
             self.measure_analog_input = 0
 
         if coincidence == True:
@@ -181,6 +187,7 @@ class MuonLab_experiment:
 
                 # HIT RATES(always active)
                 if byte_2 == b"\x35":
+
                     self.hit_byte_counter += 1
 
                     bytes_ch2 = self.device.read(2)
@@ -207,6 +214,7 @@ class MuonLab_experiment:
 
                 # COINCIDENT HITS
                 if byte_2 == b"\x55":
+
                     self.coincidences += 1
 
                 # LIFETIME
@@ -218,45 +226,24 @@ class MuonLab_experiment:
                     # step size = 10 ns
                     time_value = int_value * 10
                     self.lifetimes.append(time_value)
- 
-                
+
+                # DELTA TIME
+                if byte_2 == b"\xB5" or byte_2 == b"\xB7":
+
+                    bytes_time = self.device.read(2)
+                    value_time = int.from_bytes(bytes_time, byteorder="big") * 0.5
+                    # if identifier == b\'xB7' detector 2 was hit first so time should be reversed
+                    if byte_2 == b"\xB7":
+                        value_time *= -1
+                    self.delta_times.append(value_time)
+
+                # DIGITISED INPUT SIGNAL
+                if byte_2 == b'\xC5':
+                    
+                    data_bytes = self.device.read(1999)
+                    self.input_signal = list(data_bytes)
 
 
-    def test(self, x):
-        """ 
-        TEST FUNCTION to display taken values
-        
-        """
-        z = x
-        start_time = datetime.now()
-        dT_max = timedelta(seconds=9, minutes=0, hours=0)
-        dT = timedelta(seconds=0.001)
-        hits_ch2 = []
-
-        while dT < dT_max:
-            # flush input buffer if  more than 65000 bytes are queued
-            self.flush_input()
-
-            dT = datetime.now() - start_time
-
-            # check for beginning of a data message
-            byte_1 = self.device.read(1)
-            if byte_1 == b"\x99":
-                # check for coincidence data message
-                byte_2 = self.device.read(1)
-                if byte_2 == b"\x35":
-
-                    bytes_ch2 = self.device.read(2)
-                    hit_ch2 = int.from_bytes(bytes_ch2, byteorder="big")
-                    bytes_ch1 = self.device.read(2)
-                    hit_ch1 = int.from_bytes(bytes_ch1, byteorder="big")
-                    self.hits_ch1.append(hit_ch1)
-                    hits_ch2.append(hit_ch2)
-
-                    # print("     ch1: {} ch2: {}".format(hit_ch1, hit_ch2))
-
-    def test_change_voltage(self):
-        self.device.write(b"\x99\x14\xFA\x66")
 
     def flush_input(self):
         """ 

@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
-from pickle import FALSE
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QTimer
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import pyqtgraph as pg
 import sys
 import threading
 import numpy as np
+import matplotlib.pyplot as plt
 
 from MuonLab_controller import list_devices, MuonLab_experiment
 
@@ -27,9 +29,9 @@ class user_interface(QMainWindow):
         set_PMV_tab=True,
         set_TL_tab=True,
         set_LFT_tab=True,
-        set_DT_tab=False, #True,
-        set_WF_tab=False, #True,
-        set_HC_tab=False
+        set_DT_tab=True, 
+        set_WF_tab=True,
+        set_HC_tab=True
     ):
         super().__init__()
 
@@ -387,48 +389,58 @@ class user_interface(QMainWindow):
 
             # slider to adjust horizontal range of plot
             slider_label_LFT = QLabel("Horizontal position")
-            slider_LFT = QSlider(Qt.Horizontal)
-            slider_LFT.setTickPosition(QSlider.TicksBelow)
+            self.slider_LFT = QSlider(Qt.Horizontal)
+            self.slider_LFT.setRange(0, 200)
+            self.slider_LFT.setValue(50)
+            self.slider_LFT.setTickPosition(QSlider.TicksBelow)
 
             frame_settings_LFT.layout().addWidget(slider_label_LFT)
-            frame_settings_LFT.layout().addWidget(slider_LFT)
+            frame_settings_LFT.layout().addWidget(self.slider_LFT)
             frame_settings_LFT.layout().addWidget(QLabel("                   "))
 
             # number of bins
             bins_label_LFT = QLabel("Number of bins")
-            bins_dropper_LFT = QComboBox()
-            bins_dropper_LFT.addItem("64")
-            bins_dropper_LFT.addItem("128")
-            bins_dropper_LFT.addItem("2048")
+            self.bins_dropper_LFT = QComboBox()
+            self.bins_dropper_LFT.addItem("64")
+            self.bins_dropper_LFT.addItem("128")
+            self.bins_dropper_LFT.addItem("256")
+            self.bins_dropper_LFT.addItem("512")
+            self.bins_dropper_LFT.addItem("1024")
+            self.bins_dropper_LFT.addItem("2048")
 
             frame_settings_LFT.layout().addWidget(bins_label_LFT)
-            frame_settings_LFT.layout().addWidget(bins_dropper_LFT)
+            frame_settings_LFT.layout().addWidget(self.bins_dropper_LFT)
             frame_settings_LFT.layout().addWidget(QLabel("                   "))
 
             # start/stop experiment
             start_stop_frame_LFT = QFrame()
             start_stop_frame_LFT.setLayout(QHBoxLayout())
 
+            # start
             start_frame_LFT = QFrame()
             start_frame_LFT.setLayout(QVBoxLayout())
-            start_button_LFT = QPushButton("Start")
+            self.start_button_LFT = QPushButton("Start")
+            self.start_button_LFT.clicked.connect(self.start_lifetime_func)
             start_frame_LFT.layout().addWidget(QLabel("Record data"))
-            start_frame_LFT.layout().addWidget(start_button_LFT)
+            start_frame_LFT.layout().addWidget(self.start_button_LFT)
 
+            # stop
             stop_frame_LFT = QFrame()
             stop_frame_LFT.setLayout(QVBoxLayout())
-            stop_button_LFT = QPushButton("Stop")
+            self.stop_button_LFT = QPushButton("Stop")
+            self.stop_button_LFT.clicked.connect(self.stop_lifetime_func)
             stop_frame_LFT.layout().addWidget(QLabel("   "))
-            stop_frame_LFT.layout().addWidget(stop_button_LFT)
+            stop_frame_LFT.layout().addWidget(self.stop_button_LFT)
 
+            # status
             status_frame_LFT = QFrame()
             status_frame_LFT.setLayout(QVBoxLayout())
-            status_display_LFT = QLineEdit()
-            status_display_LFT.setFixedWidth(100)
-            status_display_LFT.setReadOnly(True)
+            self.status_display_LFT = QLineEdit()
+            self.status_display_LFT.setFixedWidth(100)
+            self.status_display_LFT.setReadOnly(True)
 
             status_frame_LFT.layout().addWidget(QLabel("Status"))
-            status_frame_LFT.layout().addWidget(status_display_LFT)
+            status_frame_LFT.layout().addWidget(self.status_display_LFT)
 
             start_stop_frame_LFT.layout().addWidget(start_frame_LFT)
             start_stop_frame_LFT.layout().addWidget(stop_frame_LFT)
@@ -438,29 +450,31 @@ class user_interface(QMainWindow):
             frame_settings_LFT.layout().addWidget(QLabel("                   "))
 
             # reset display
-            reset_button_LFT = QPushButton("Reset")
+            ##### TODO: redundant reset button on lft tab?
+            #reset_button_LFT = QPushButton("Reset")
 
-            frame_settings_LFT.layout().addWidget(QLabel("Reset Display"))
-            frame_settings_LFT.layout().addWidget(reset_button_LFT)
+            #frame_settings_LFT.layout().addWidget(QLabel("Reset Display"))
+            #frame_settings_LFT.layout().addWidget(reset_button_LFT)
 
             # event counter and resetter
             event_row_LFT = QFrame()
             event_row_LFT.setLayout(QHBoxLayout())
             event_counter_frame_LFT = QFrame()
             event_counter_frame_LFT.setLayout(QVBoxLayout())
-            event_display_LFT = QLineEdit()
-            event_display_LFT.setFixedWidth(100)
-            event_display_LFT.setReadOnly(True)
+            self.event_display_LFT = QLineEdit()
+            self.event_display_LFT.setFixedWidth(100)
+            self.event_display_LFT.setReadOnly(True)
 
             event_counter_frame_LFT.layout().addWidget(QLabel("Total events"))
-            event_counter_frame_LFT.layout().addWidget(event_display_LFT)
+            event_counter_frame_LFT.layout().addWidget(self.event_display_LFT)
 
             reset_event_frame_LFT = QFrame()
             reset_event_frame_LFT.setLayout(QVBoxLayout())
-            reset_button = QPushButton("Reset")
+            self.reset_button = QPushButton("Reset")
+            self.reset_button.clicked.connect(self.reset_lifetime_func)
 
             reset_event_frame_LFT.layout().addWidget(QLabel("Reset total events"))
-            reset_event_frame_LFT.layout().addWidget(reset_button)
+            reset_event_frame_LFT.layout().addWidget(self.reset_button)
 
             event_row_LFT.layout().addWidget(event_counter_frame_LFT)
             event_row_LFT.layout().addWidget(reset_event_frame_LFT)
@@ -474,13 +488,18 @@ class user_interface(QMainWindow):
             plot_frame_LFT.setPalette(palette_white)
             plot_frame_LFT.setLayout(QVBoxLayout())
             plot_frame_LFT.setFrameShape(QFrame.StyledPanel)
-            self.display_LFT = pg.PlotWidget()
-            self.bar_graph_LFT = pg.BarGraphItem()
-            self.display_LFT.addItem(self.bar_graph_LFT)
-            self.display_LFT.setLabel("left", "Counts")
-            self.display_LFT.setLabel("bottom", "Time (us)")
+            self.figure_LFT = plt.figure()
+            self.display_LFT = FigureCanvas(self.figure_LFT)
+            # empty initial plot
+            ax_LFT = self.figure_LFT.add_subplot(111)
+            ax_LFT.hist([])
+            ax_LFT.set_xlim(left=0)
+            ax_LFT.set_ylim(bottom=0)
+            ax_LFT.set_xlabel("Lifetime (ns)")
+            ax_LFT.set_ylabel("Counts")
+            ax_LFT.grid()
+            self.display_LFT.draw()
 
-            plot_frame_LFT.layout().addWidget(left_frame_LFT)
             plot_frame_LFT.layout().addWidget(self.display_LFT)
 
             tab_LFT_layout.layout().addWidget(left_frame_LFT)
@@ -507,46 +526,59 @@ class user_interface(QMainWindow):
             left_settings_DT.setFrameShape(QFrame.StyledPanel)
             left_settings_DT.setLayout(QVBoxLayout())
 
+            # bins drop down menu
+            bins_label_DT = QLabel("Number of bins")
+            self.bins_dropper_DT = QComboBox()
+            self.bins_dropper_DT.addItem("64")
+            self.bins_dropper_DT.addItem("128")
+            self.bins_dropper_DT.addItem("256")
+            self.bins_dropper_DT.addItem("512")
+            self.bins_dropper_DT.addItem("1024")
+            self.bins_dropper_DT.addItem("2048")
+
             # start/stop dT measuring
             start_stop_frame_DT = QFrame()
             start_stop_frame_DT.setLayout(QHBoxLayout())
 
             start_frame_DT = QFrame()
             start_frame_DT.setLayout(QVBoxLayout())
-            start_button_DT = QPushButton("Start")
+            self.start_button_DT = QPushButton("Start")
+            self.start_button_DT.clicked.connect(self.start_delta_time_func)
             start_frame_DT.layout().addWidget(QLabel("Record data"))
-            start_frame_DT.layout().addWidget(start_button_DT)
+            start_frame_DT.layout().addWidget(self.start_button_DT)
 
             stop_frame_DT = QFrame()
             stop_frame_DT.setLayout(QVBoxLayout())
-            stop_button_DT = QPushButton("Stop")
+            self.stop_button_DT = QPushButton("Stop")
+            self.stop_button_DT.clicked.connect(self.stop_delta_time_func)
             stop_frame_DT.layout().addWidget(QLabel("   "))
-            stop_frame_DT.layout().addWidget(stop_button_DT)
+            stop_frame_DT.layout().addWidget(self.stop_button_DT)
 
-            start_button_DT = QPushButton("Start")
-            stop_button_DT = QPushButton("Stop")
             status_frame_DT = QFrame()
             status_frame_DT.setLayout(QVBoxLayout())
-            status_display_DT = QLineEdit()
-            status_display_DT.setFixedWidth(100)
-            status_display_DT.setReadOnly(True)
+            self.status_display_DT = QLineEdit()
+            self.status_display_DT.setFixedWidth(100)
+            self.status_display_DT.setReadOnly(True)
 
             status_frame_DT.layout().addWidget(QLabel("Status"))
-            status_frame_DT.layout().addWidget(status_display_DT)
+            status_frame_DT.layout().addWidget(self.status_display_DT)
 
             start_stop_frame_DT.layout().addWidget(start_frame_DT)
             start_stop_frame_DT.layout().addWidget(stop_frame_DT)
             start_stop_frame_DT.layout().addWidget(status_frame_DT)
-
+            
+            left_settings_DT.layout().addWidget(bins_label_DT)
+            left_settings_DT.layout().addWidget(self.bins_dropper_DT)
             left_settings_DT.layout().addWidget(start_stop_frame_DT)
 
             # reset display
             reset_frame_DT = QFrame()
             reset_frame_DT.setLayout(QVBoxLayout())
-            reset_button_DT = QPushButton("Reset")
+            self.reset_button_DT = QPushButton("Reset")
+            self.reset_button_DT.clicked.connect(self.reset_delta_time_func)
 
             reset_frame_DT.layout().addWidget(QLabel("Reset Display"))
-            reset_frame_DT.layout().addWidget(reset_button_DT)
+            reset_frame_DT.layout().addWidget(self.reset_button_DT)
 
             left_settings_DT.layout().addWidget(reset_frame_DT)
 
@@ -558,11 +590,18 @@ class user_interface(QMainWindow):
             plot_frame_DT = QFrame()
             plot_frame_DT.setLayout(QVBoxLayout())
             plot_frame_DT.setFrameShape(QFrame.StyledPanel)
-            display_DT = pg.PlotWidget()
-            display_DT.setLabel("left", "Counts")
-            display_DT.setLabel("bottom", "Time (us)")
+            self.figure_DT = plt.figure()
+            self.display_DT = FigureCanvas(self.figure_DT)
+            # empty initial plot
+            ax_DT = self.figure_DT.add_subplot(111)
+            ax_DT.hist([])
+            ax_DT.set_ylim(bottom=0)
+            ax_DT.set_xlabel("Delta time (ns)")
+            ax_DT.set_ylabel("Counts")
+            ax_DT.grid()
+            self.display_DT.draw()
 
-            plot_frame_DT.layout().addWidget(display_DT)
+            plot_frame_DT.layout().addWidget(self.display_DT)
 
             tab_DT_layout.addWidget(left_frame_DT)
             tab_DT_layout.addWidget(plot_frame_DT)
@@ -594,9 +633,10 @@ class user_interface(QMainWindow):
 
             start_frame_WF = QFrame()
             start_frame_WF.setLayout(QVBoxLayout())
-            start_button_WF = QPushButton("Start")
+            self.start_button_WF = QPushButton("Start")
+            self.start_button_WF.clicked.connect(self.start_waveform_func)
             start_frame_WF.layout().addWidget(QLabel("Record data"))
-            start_frame_WF.layout().addWidget(start_button_WF)
+            start_frame_WF.layout().addWidget(self.start_button_WF)
 
             stop_frame_WF = QFrame()
             stop_frame_WF.setLayout(QVBoxLayout())
@@ -604,8 +644,6 @@ class user_interface(QMainWindow):
             stop_frame_WF.layout().addWidget(QLabel("   "))
             stop_frame_WF.layout().addWidget(stop_button_WF)
 
-            start_button_WF = QPushButton("Start")
-            stop_button_WF = QPushButton("Stop")
             status_frame_WF = QFrame()
             status_frame_WF.setLayout(QVBoxLayout())
             status_display_WF = QLineEdit()
@@ -625,17 +663,21 @@ class user_interface(QMainWindow):
 
             pre_trigger_frame_WF = QFrame()
             pre_trigger_frame_WF.setLayout(QVBoxLayout())
-            pre_trigger_slider_WF = QSlider(Qt.Horizontal)
-            pre_trigger_slider_WF.setTickPosition(QSlider.TicksBelow)
-            pre_trigger_frame_WF.layout().addWidget(QLabel("Pre-trigger time(ns)"))
-            pre_trigger_frame_WF.layout().addWidget(pre_trigger_slider_WF)
+            self.pre_trigger_slider_WF = QSlider(Qt.Horizontal)
+            self.pre_trigger_slider_WF.setRange(10,30)
+            self.pre_trigger_slider_WF.setValue(20)
+            self.pre_trigger_slider_WF.setTickPosition(QSlider.TicksBelow)
+            pre_trigger_frame_WF.layout().addWidget(QLabel("Pre-trigger time (ns)"))
+            pre_trigger_frame_WF.layout().addWidget(self.pre_trigger_slider_WF)
 
             time_disp_frame_WF = QFrame()
             time_disp_frame_WF.setLayout(QVBoxLayout())
-            time_slider_WF = QSlider(Qt.Horizontal)
-            time_slider_WF.setTickPosition(QSlider.TicksBelow)
+            self.time_slider_WF = QSlider(Qt.Horizontal)
+            self.time_slider_WF.setRange(0,100)
+            self.time_slider_WF.setValue(50)
+            self.time_slider_WF.setTickPosition(QSlider.TicksBelow)
             time_disp_frame_WF.layout().addWidget(QLabel("Time (ns)"))
-            time_disp_frame_WF.layout().addWidget(time_slider_WF)
+            time_disp_frame_WF.layout().addWidget(self.time_slider_WF)
 
             times_frame_WF.layout().addWidget(pre_trigger_frame_WF)
             times_frame_WF.layout().addWidget(time_disp_frame_WF)
@@ -651,11 +693,20 @@ class user_interface(QMainWindow):
             plot_frame_WF = QFrame()
             plot_frame_WF.setLayout(QVBoxLayout())
             plot_frame_WF.setFrameShape(QFrame.StyledPanel)
-            display_WF = pg.PlotWidget()
-            display_WF.setLabel("left", "Amplitude (mV)")
-            display_WF.setLabel("bottom", "Time (ns)")
+            self.figure_WF = plt.figure()
+            self.display_WF = FigureCanvas(self.figure_WF)
+            # empty initial plot
+            ax_WF = self.figure_WF.add_subplot(111)
+            ax_WF.set_facecolor((0,0,0))
+            ax_WF.plot([0],[0])
+            ax_WF.set_xlim(left=0)
+            ax_WF.set_ylim(1500, 0)
+            ax_WF.set_xlabel("Time (ns)")
+            ax_WF.set_ylabel("Amplitude (mV)")
+            ax_WF.grid()
+            self.display_WF.draw()
 
-            plot_frame_WF.layout().addWidget(display_WF)
+            plot_frame_WF.layout().addWidget(self.display_WF)
 
             tab_WF_layout.addWidget(left_frame_WF)
             tab_WF_layout.addWidget(plot_frame_WF)
@@ -937,20 +988,6 @@ class user_interface(QMainWindow):
 
             tabs.addTab(tab_HC, "Hit and coincidence rate")
 
-        test = QFrame()
-        test.setLayout(QHBoxLayout())
-        test_button = QPushButton("Run")
-        test_button.clicked.connect(self.test_coincidences)
-        self.test_plot = pg.PlotWidget()
-
-        self.plot_timer = QTimer()
-        self.plot_timer.timeout.connect(self.test_plot_coincidences)
-        self.plot_timer.start(1000)
-
-        test.layout().addWidget(test_button)
-        test.layout().addWidget(self.test_plot)
-        tabs.addTab(test, "test")
-
 
     ##### FUNCTIONS #####
     ##### TOP BAR #####
@@ -1002,6 +1039,9 @@ class user_interface(QMainWindow):
             self.right_voltage.setText(" ")
             self.left_voltage_TL.setText(" ")
             self.right_voltage_TL.setText(" ")
+            self.box_counts_1.setText(" ")
+            self.box_counts_2.setText(" ")
+
             pass
 
     def box_counts_1_func(self):
@@ -1084,12 +1124,51 @@ class user_interface(QMainWindow):
         """
 
         # reset all current values
-        self.experiment.lifetimes = []
+        self.reset_lifetime_func()
+
+        # set MuonLab to measure lifetimes
+        self.experiment.set_measurement(lifetime=True)
 
         # create timer to update plot
         self.lifetime_timer = QTimer()
-        self.lifetime_timer.start(1000)
+        self.lifetime_timer.start(500)
         self.lifetime_timer.timeout.connect(self.update_lifetime_func)
+
+        # set status indicator
+        self.status_display_LFT.setText("RUNNING")
+
+    def stop_lifetime_func(self):
+        """
+        Stops lifetime measurement
+        
+        """
+
+        # stop automatic updating
+        self.lifetime_timer.disconnect()
+
+        # set MuonLab to stop measuring lifetimes
+        self.experiment.set_measurement(lifetime=False)
+
+        # update status display
+        self.status_display_LFT.setText("STOPPED")
+
+    def reset_lifetime_func(self):
+        """
+        Resets values in lifetime measurement
+        
+        """
+        self.experiment.lifetimes = []
+
+        # plot empty histogram
+        self.figure_LFT.clear()
+        ax = self.figure_LFT.add_subplot(111)
+        ax.hist([])
+        plt.xlim(left=0)
+        plt.ylim(bottom=0)
+        plt.xlabel("Lifetime (ns)")
+        plt.ylabel("Counts")
+        plt.grid()
+        self.display_LFT.draw()
 
     def update_lifetime_func(self):
         """ 
@@ -1099,7 +1178,156 @@ class user_interface(QMainWindow):
 
         # get values
         lifetimes = self.experiment.lifetimes
+        bins = int(self.bins_dropper_LFT.currentText())
+        x_max = self.slider_LFT.value() * 100
+
+        # plot values in histogram
+        self.figure_LFT.clear()
+        ax_LFT = self.figure_LFT.add_subplot(111)
+        ax_LFT.hist(lifetimes, color=[230/255, 25/255, 61/255], edgecolor='black', linewidth=.5, bins=bins)
+        ax_LFT.set_xlim(0, x_max)
+        ax_LFT.set_ylim(bottom=0)
+        ax_LFT.set_xlabel("Lifetime (ns)")
+        ax_LFT.set_ylabel("Counts")
+        ax_LFT.grid()
+        self.display_LFT.draw()
+
+        # update total events count
+        self.event_display_LFT.setText(str(len(lifetimes)))
+    ##########
+
+
+    ##### TAB: DELTA TIME MEASUREMENT #####
+    def start_delta_time_func(self):
+        """
+        Starts Delta time measurement and data collection
         
+        """
+
+        # reset all current values
+        self.reset_delta_time_func()
+
+        # set MuonLab to measure lifetimes
+        self.experiment.set_measurement(delta_time=True)
+
+        # create timer to update plot
+        self.delta_time_timer = QTimer()
+        self.delta_time_timer.start(500)
+        self.delta_time_timer.timeout.connect(self.update_delta_time_func)
+
+        # set status indicator
+        self.status_display_DT.setText("RUNNING")
+
+    def stop_delta_time_func(self):
+        """
+        Stops Delta time measurement
+        
+        """
+
+        # stop automatic updating
+        self.delta_time_timer.disconnect()
+
+        # set MuonLab to stop measuring Delta times
+        self.experiment.set_measurement(delta_time=False)
+
+        # update status display
+        self.status_display_DT.setText("STOPPED")
+
+    def reset_delta_time_func(self):
+        """
+        Resets values in Delta time measurement
+        
+        """
+        self.experiment.delta_times = []
+
+        # plot empty histogram
+        self.figure_DT.clear()
+        ax = self.figure_DT.add_subplot(111)
+        ax.hist([])
+        plt.xlim(left=0)
+        plt.ylim(bottom=0)
+        plt.xlabel("Lifetime (ns)")
+        plt.ylabel("Counts")
+        plt.grid()
+        self.display_DT.draw()
+
+    def update_delta_time_func(self):
+        """
+        Updates plot in Delta time tab
+        
+        """
+
+        # get values
+        delta_times = self.experiment.delta_times
+        bins = int(self.bins_dropper_DT.currentText())
+
+        # plot values in histogram
+        self.figure_DT.clear()
+        ax_DT = self.figure_DT.add_subplot(111)
+        ax_DT.hist(delta_times, color=[230/255, 25/255, 61/255], edgecolor='black', linewidth=.5, bins=bins)
+        ax_DT.set_ylim(bottom=0)
+        ax_DT.set_xlabel("Lifetime (ns)")
+        ax_DT.set_ylabel("Counts")
+        ax_DT.grid()
+        self.display_DT.draw()
+    ##########
+
+
+    ##### TAB: WAVEFORM CHANNEL 1 #####
+    def start_waveform_func(self):
+        """
+        Programs MuonLab III to return digitised values of the "raw" input signal of
+        channel 1.
+        
+        """
+
+        # set MuonLab to return the digitised input signal of channel 1
+        self.experiment.set_measurement(waveform=True)
+
+        # create timer to update plot
+        self.signal_timer = QTimer()
+        self.signal_timer.start(500)
+        self.signal_timer.timeout.connect(self.update_waveform_func)
+
+    def update_waveform_func(self):
+        """
+        Updates plot in waveform tab
+        
+        """
+        ##### TODO : doesnt work well yet
+        
+        # get values
+        total_waveform = self.experiment.input_signal
+
+        # range to view is set with sliders in tab. step size of data = 5ns
+        pre_trigger = int(self.pre_trigger_slider_WF.value())
+        time_to_display = int(self.time_slider_WF.value()) 
+        n_steps = time_to_display - pre_trigger
+
+        # offset from zero is put in manually
+        manual_offset = np.ones(n_steps) * self.left_slider_TL.value()
+        signal_data = total_waveform[pre_trigger:time_to_display]
+
+        display_data = manual_offset + signal_data
+
+        x_data = np.arange(0, n_steps) * 5
+
+        # plot values
+        self.figure_WF.clear()
+        ax_WF = self.figure_WF.add_subplot(111)
+        ax_WF.set_facecolor((0,0,0))
+        ax_WF.plot(x_data, display_data)
+        ax_WF.set_ylim(300, 0)
+        ax_WF.set_xlabel("Lifetime (ns)")
+        ax_WF.set_ylabel("Counts")
+        ax_WF.grid()
+        self.display_WF.draw()
+
+        
+
+        
+
+
     ##########
 
 
@@ -1200,7 +1428,7 @@ class user_interface(QMainWindow):
         # reset all values
         self.reset_coincidence_func()
 
-        # sets MuonLab to measure coincidences
+        # set MuonLab to measure coincidences
         self.experiment.set_measurement(coincidence=True)
 
         # create timer to update both coincidence boxes
@@ -1223,7 +1451,7 @@ class user_interface(QMainWindow):
         # stop automatic updating
         self.coincidence_timer.disconnect()
 
-        # sets MuonLab to stop measuring coincidences
+        # set MuonLab to stop measuring coincidences
         self.experiment.set_measurement(coincidence=False)
 
         # update status display
@@ -1263,18 +1491,6 @@ class user_interface(QMainWindow):
         self.run_time_coin_HC.setText(str(runtime))
     ##########
 
-
-    def test_coincidences(self):
-
-        self.test_plot_coincidences()
-
-    def test_plot_coincidences(self):
-        """
-        Temporary TEST function, plots counts, to be removed
-
-        """
-        self.test_plot.clear()
-        self.test_plot.plot(range(10), self.experiment.hits_ch1_last_10)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
