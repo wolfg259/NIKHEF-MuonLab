@@ -9,6 +9,7 @@ import sys
 import threading
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from MuonLab_controller import list_devices, MuonLab_experiment
 
@@ -29,18 +30,21 @@ class user_interface(QMainWindow):
         set_PMV_tab=True,
         set_TL_tab=True,
         set_LFT_tab=True,
-        set_DT_tab=True, 
+        set_DT_tab=True,
         set_WF_tab=True,
-        set_HC_tab=True
+        set_HC_tab=True,
     ):
         super().__init__()
 
+        # create experiment object
         self.experiment = None
+        self.filename = None
 
         ##### MAIN LAYOUT #####
         # initiating central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+        app.aboutToQuit.connect(self.closing_func)
 
         # set general options for window
         self.setWindowTitle("MuonLab III v0.1")
@@ -73,10 +77,8 @@ class user_interface(QMainWindow):
 
         # add nikhef logo (source: https://www.nikhef.nl/media/beeldmateriaal/)
         logo_label = QLabel("test")
-        ##### TODO change image location #####
-        pixmap_ = QPixmap(
-            "C:\\Users\\DELL\Desktop\\Internship summer\\own code\\src\\NIKHEF-MuonLabIII\\GUI\\nikhef_logo.png"
-        )
+        logo_path = os.path.join(os.path.dirname(__file__), "nikhef_logo.png")
+        pixmap_ = QPixmap(logo_path)
         pixmap = pixmap_.scaledToHeight(100)
         logo_label.setPixmap(pixmap)
         top_bar_hbox.addWidget(logo_label)
@@ -84,29 +86,32 @@ class user_interface(QMainWindow):
         # add spacer
         top_bar_hbox.addWidget(QLabel("                   "))
 
-        # add device selection dropbox and connection indicator
+        # add device selection dropbox, connection indicator, save button
         # create vbox layout to add title
         device_vbox = QVBoxLayout()
         # create drop-down menu and label
         self.device_select = QComboBox()
         device_select_label = QLabel("Device")
-
         self.device_select.addItem("--select device--")
         connected_devices = list_devices()
         for device in connected_devices:
             self.device_select.addItem(device)
         self.device_select.currentIndexChanged.connect(self.device_select_func)
-
-        # add widgets to own vbox
-        device_vbox.addWidget(device_select_label)
-        device_vbox.addWidget(self.device_select)
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.save_data)
 
         # add status indicator
         self.status_indicator = QLineEdit()
         self.status_indicator.setFixedWidth(150)
         self.status_indicator.setReadOnly(True)
         self.status_indicator.setText("NOT CONNECTED")
+
+        # add widgets to own vbox
+        device_vbox.addWidget(device_select_label)
+        device_vbox.addWidget(self.device_select)
         device_vbox.addWidget(self.status_indicator)
+        device_vbox.addWidget(self.save_button)
+
         # add vbox layout to top bar layout
         top_bar_hbox.addLayout(device_vbox)
 
@@ -451,10 +456,10 @@ class user_interface(QMainWindow):
 
             # reset display
             ##### TODO: redundant reset button on lft tab?
-            #reset_button_LFT = QPushButton("Reset")
+            # reset_button_LFT = QPushButton("Reset")
 
-            #frame_settings_LFT.layout().addWidget(QLabel("Reset Display"))
-            #frame_settings_LFT.layout().addWidget(reset_button_LFT)
+            # frame_settings_LFT.layout().addWidget(QLabel("Reset Display"))
+            # frame_settings_LFT.layout().addWidget(reset_button_LFT)
 
             # event counter and resetter
             event_row_LFT = QFrame()
@@ -566,7 +571,7 @@ class user_interface(QMainWindow):
             start_stop_frame_DT.layout().addWidget(start_frame_DT)
             start_stop_frame_DT.layout().addWidget(stop_frame_DT)
             start_stop_frame_DT.layout().addWidget(status_frame_DT)
-            
+
             left_settings_DT.layout().addWidget(bins_label_DT)
             left_settings_DT.layout().addWidget(self.bins_dropper_DT)
             left_settings_DT.layout().addWidget(start_stop_frame_DT)
@@ -635,23 +640,24 @@ class user_interface(QMainWindow):
             start_frame_WF.setLayout(QVBoxLayout())
             self.start_button_WF = QPushButton("Start")
             self.start_button_WF.clicked.connect(self.start_waveform_func)
-            start_frame_WF.layout().addWidget(QLabel("Record data"))
+            start_frame_WF.layout().addWidget(QLabel("Display data"))
             start_frame_WF.layout().addWidget(self.start_button_WF)
 
             stop_frame_WF = QFrame()
             stop_frame_WF.setLayout(QVBoxLayout())
-            stop_button_WF = QPushButton("Stop")
+            self.stop_button_WF = QPushButton("Stop")
+            self.stop_button_WF.clicked.connect(self.stop_waveform_func)
             stop_frame_WF.layout().addWidget(QLabel("   "))
-            stop_frame_WF.layout().addWidget(stop_button_WF)
+            stop_frame_WF.layout().addWidget(self.stop_button_WF)
 
             status_frame_WF = QFrame()
             status_frame_WF.setLayout(QVBoxLayout())
-            status_display_WF = QLineEdit()
-            status_display_WF.setFixedWidth(100)
-            status_display_WF.setReadOnly(True)
+            self.status_display_WF = QLineEdit()
+            self.status_display_WF.setFixedWidth(100)
+            self.status_display_WF.setReadOnly(True)
 
             status_frame_WF.layout().addWidget(QLabel("Status"))
-            status_frame_WF.layout().addWidget(status_display_WF)
+            status_frame_WF.layout().addWidget(self.status_display_WF)
 
             start_stop_frame_WF.layout().addWidget(start_frame_WF)
             start_stop_frame_WF.layout().addWidget(stop_frame_WF)
@@ -664,8 +670,8 @@ class user_interface(QMainWindow):
             pre_trigger_frame_WF = QFrame()
             pre_trigger_frame_WF.setLayout(QVBoxLayout())
             self.pre_trigger_slider_WF = QSlider(Qt.Horizontal)
-            self.pre_trigger_slider_WF.setRange(10,30)
-            self.pre_trigger_slider_WF.setValue(20)
+            self.pre_trigger_slider_WF.setRange(0, 10)
+            self.pre_trigger_slider_WF.setValue(0)
             self.pre_trigger_slider_WF.setTickPosition(QSlider.TicksBelow)
             pre_trigger_frame_WF.layout().addWidget(QLabel("Pre-trigger time (ns)"))
             pre_trigger_frame_WF.layout().addWidget(self.pre_trigger_slider_WF)
@@ -673,10 +679,10 @@ class user_interface(QMainWindow):
             time_disp_frame_WF = QFrame()
             time_disp_frame_WF.setLayout(QVBoxLayout())
             self.time_slider_WF = QSlider(Qt.Horizontal)
-            self.time_slider_WF.setRange(0,100)
+            self.time_slider_WF.setRange(14, 99)
             self.time_slider_WF.setValue(50)
             self.time_slider_WF.setTickPosition(QSlider.TicksBelow)
-            time_disp_frame_WF.layout().addWidget(QLabel("Time (ns)"))
+            time_disp_frame_WF.layout().addWidget(QLabel("Time displayed (ns)"))
             time_disp_frame_WF.layout().addWidget(self.time_slider_WF)
 
             times_frame_WF.layout().addWidget(pre_trigger_frame_WF)
@@ -697,10 +703,10 @@ class user_interface(QMainWindow):
             self.display_WF = FigureCanvas(self.figure_WF)
             # empty initial plot
             ax_WF = self.figure_WF.add_subplot(111)
-            ax_WF.set_facecolor((0,0,0))
-            ax_WF.plot([0],[0])
+            ax_WF.set_facecolor((0, 0, 0))
+            ax_WF.plot([0], [0])
             ax_WF.set_xlim(left=0)
-            ax_WF.set_ylim(1500, 0)
+            ax_WF.set_ylim(300, 0)
             ax_WF.set_xlabel("Time (ns)")
             ax_WF.set_ylabel("Amplitude (mV)")
             ax_WF.grid()
@@ -839,11 +845,11 @@ class user_interface(QMainWindow):
             self.status_display_HC = QLineEdit()
             self.status_display_HC.setFixedWidth(100)
             self.status_display_HC.setReadOnly(True)
-            self.status_display_HC.setText("STOPPED")
+            self.status_display_HC.setText("  ")
 
             status_frame_HC.layout().addWidget(QLabel("Status"))
             status_frame_HC.layout().addWidget(self.status_display_HC)
-            
+
             # reset
             reset_button_frame_HC = QFrame()
             reset_button_frame_HC.setLayout(QVBoxLayout())
@@ -988,7 +994,6 @@ class user_interface(QMainWindow):
 
             tabs.addTab(tab_HC, "Hit and coincidence rate")
 
-
     ##### FUNCTIONS #####
     ##### TOP BAR #####
     def device_select_func(self):
@@ -1023,32 +1028,85 @@ class user_interface(QMainWindow):
             self.box_counts_2_timer.start(500)
             self.box_counts_2_timer.timeout.connect(self.box_counts_2_func)
 
-
-
             ##### THREADING #####
             self.main_thread = threading.Thread(
                 target=self.experiment.data_acquisition, args=()
             )
             self.main_thread.start()
 
-        # if no connection can be established
+        # if no connection can be established:
         except:
+
+            # reset all settings
             self.experiment = None
             self.status_indicator.setText("NOT CONNECTED")
             self.left_voltage.setText(" ")
+            self.left_slider.setValue(0)
             self.right_voltage.setText(" ")
+            self.right_slider.setValue(0)
             self.left_voltage_TL.setText(" ")
+            self.left_slider_TL.setValue(101)
             self.right_voltage_TL.setText(" ")
+            self.left_slider_TL.setValue(101)
             self.box_counts_1.setText(" ")
             self.box_counts_2.setText(" ")
 
-            pass
+            # stop all experiments from updating if they are running
+            # close measuring loop
+            try:
+                self.experiment.run_measurements = False
+            except:
+                pass
+            try:
+                self.main_thread.close()
+            except:
+                pass
+            try:
+                self.lifetime_timer.disconnect()
+            except:
+                pass
+            try:
+                self.delta_time_timer.disconnect()
+            except:
+                pass
+            try:
+                self.hit_rate_timer.disconnect()
+            except:
+                pass
+            try:
+                self.coincidence_timer.disconnect()
+            except:
+                pass
+            try:
+                self.signal_timer.disconnect()
+            except:
+                pass
+            try:
+                self.box_counts_1_timer.disconnect()
+            except:
+                pass
+            try:
+                self.box_counts_2_timer.disconnect()
+            except:
+                pass
+
+    def save_data(self):
+        """
+        Requests file name and saves data if a MuonLab is connected
+        
+        """
+
+        if self.experiment != None:
+            filename, _ = QFileDialog.getSaveFileName(filter="CSV files (*.csv)")
+            self.experiment.filename = filename
+            self.experiment.save_data()
 
     def box_counts_1_func(self):
         """
         Sets average hit count of channel 1 in top bar
         
         """
+
         last_avg = str(round(np.mean(self.experiment.hits_ch1_last_10), 1))
         self.box_counts_1.setText(last_avg)
 
@@ -1057,10 +1115,11 @@ class user_interface(QMainWindow):
         Sets average hit count of channel 2 in top bar
         
         """
+
         last_avg = str(round(np.mean(self.experiment.hits_ch2_last_10), 1))
         self.box_counts_2.setText(last_avg)
+   
     ##########
-
 
     ##### TAB: PHOTO MULTIPLIER VOLTAGE
     def PMT_1_voltage_func(self):
@@ -1086,8 +1145,8 @@ class user_interface(QMainWindow):
         display_value = str(round(300 + ((value / 255) * 1400), 0))
         self.experiment.set_value_PMT_2(value)
         self.right_voltage.setText(display_value)
-    ##########
 
+    ##########
 
     ##### TAB: THRESHOLD VOLTAGE #####
     def threshold_voltage_ch_1_func(self):
@@ -1113,8 +1172,8 @@ class user_interface(QMainWindow):
         display_value = str(round((value / 255) * 380, 0))
         self.experiment.set_threshold_ch_2(value)
         self.right_voltage_TL.setText(display_value)
-    ##########
 
+    ##########
 
     ##### TAB: LIFETIME MEASUREMENT #####
     def start_lifetime_func(self):
@@ -1126,8 +1185,13 @@ class user_interface(QMainWindow):
         # reset all current values
         self.reset_lifetime_func()
 
-        # set MuonLab to measure lifetimes
+        # ask for filename if none has been given yet
+        if self.experiment.filename == None:
+            self.save_data()
+
+        # set MuonLab to measure lifetimes and to save data
         self.experiment.set_measurement(lifetime=True)
+        self.experiment.start_save = True
 
         # create timer to update plot
         self.lifetime_timer = QTimer()
@@ -1184,7 +1248,13 @@ class user_interface(QMainWindow):
         # plot values in histogram
         self.figure_LFT.clear()
         ax_LFT = self.figure_LFT.add_subplot(111)
-        ax_LFT.hist(lifetimes, color=[230/255, 25/255, 61/255], edgecolor='black', linewidth=.5, bins=bins)
+        ax_LFT.hist(
+            lifetimes,
+            color=[230 / 255, 25 / 255, 61 / 255],
+            edgecolor="black",
+            linewidth=0.5,
+            bins=bins,
+        )
         ax_LFT.set_xlim(0, x_max)
         ax_LFT.set_ylim(bottom=0)
         ax_LFT.set_xlabel("Lifetime (ns)")
@@ -1194,8 +1264,8 @@ class user_interface(QMainWindow):
 
         # update total events count
         self.event_display_LFT.setText(str(len(lifetimes)))
-    ##########
 
+    ##########
 
     ##### TAB: DELTA TIME MEASUREMENT #####
     def start_delta_time_func(self):
@@ -1207,8 +1277,13 @@ class user_interface(QMainWindow):
         # reset all current values
         self.reset_delta_time_func()
 
-        # set MuonLab to measure lifetimes
+        # ask for filename if none has been given yet
+        if self.experiment.filename == None:
+            self.save_data()
+
+        # set MuonLab to measure lifetimes and to save data
         self.experiment.set_measurement(delta_time=True)
+        self.experiment.start_save = True
 
         # create timer to update plot
         self.delta_time_timer = QTimer()
@@ -1246,7 +1321,7 @@ class user_interface(QMainWindow):
         ax.hist([])
         plt.xlim(left=0)
         plt.ylim(bottom=0)
-        plt.xlabel("Lifetime (ns)")
+        plt.xlabel("Delta time (ns)")
         plt.ylabel("Counts")
         plt.grid()
         self.display_DT.draw()
@@ -1264,14 +1339,20 @@ class user_interface(QMainWindow):
         # plot values in histogram
         self.figure_DT.clear()
         ax_DT = self.figure_DT.add_subplot(111)
-        ax_DT.hist(delta_times, color=[230/255, 25/255, 61/255], edgecolor='black', linewidth=.5, bins=bins)
+        ax_DT.hist(
+            delta_times,
+            color=[230 / 255, 25 / 255, 61 / 255],
+            edgecolor="black",
+            linewidth=0.5,
+            bins=bins,
+        )
         ax_DT.set_ylim(bottom=0)
-        ax_DT.set_xlabel("Lifetime (ns)")
+        ax_DT.set_xlabel("Delta time (ns)")
         ax_DT.set_ylabel("Counts")
         ax_DT.grid()
         self.display_DT.draw()
-    ##########
 
+    ##########
 
     ##### TAB: WAVEFORM CHANNEL 1 #####
     def start_waveform_func(self):
@@ -1289,47 +1370,77 @@ class user_interface(QMainWindow):
         self.signal_timer.start(500)
         self.signal_timer.timeout.connect(self.update_waveform_func)
 
+        # update statys indicator
+        self.status_display_WF.setText("RUNNING")
+
+    def stop_waveform_func(self):
+        """
+        Stops plot in waveform tab
+        
+        """
+
+        # stop automatic updating
+        self.signal_timer.disconnect()
+
+        # set MuonLab to stop returning input signal
+        self.experiment.set_measurement(waveform=False)
+
+        # clear plot
+        self.figure_WF.clear()
+        ax_WF = self.figure_WF.add_subplot(111)
+        ax_WF.set_facecolor((0, 0, 0))
+        ax_WF.plot([0], [0])
+        ax_WF.set_xlim(left=0)
+        ax_WF.set_ylim(300, 0)
+        ax_WF.set_xlabel("Time (ns)")
+        ax_WF.set_ylabel("Amplitude (mV)")
+        ax_WF.grid()
+        self.display_WF.draw()
+
+        # update status display
+        self.status_display_WF.setText("STOPPED")
+
     def update_waveform_func(self):
         """
         Updates plot in waveform tab
         
         """
-        ##### TODO : doesnt work well yet
-        
+
         # get values
         total_waveform = self.experiment.input_signal
 
         # range to view is set with sliders in tab. step size of data = 5ns
         pre_trigger = int(self.pre_trigger_slider_WF.value())
-        time_to_display = int(self.time_slider_WF.value()) 
+        time_to_display = int(self.time_slider_WF.value())
         n_steps = time_to_display - pre_trigger
 
         # offset from zero is put in manually
-        manual_offset = np.ones(n_steps) * self.left_slider_TL.value()
+        threshold_value = self.left_slider_TL.value()
         signal_data = total_waveform[pre_trigger:time_to_display]
-
-        display_data = manual_offset + signal_data
 
         x_data = np.arange(0, n_steps) * 5
 
         # plot values
         self.figure_WF.clear()
         ax_WF = self.figure_WF.add_subplot(111)
-        ax_WF.set_facecolor((0,0,0))
-        ax_WF.plot(x_data, display_data)
+        ax_WF.set_facecolor((0, 0, 0))
+        # plot data
+        ax_WF.plot(x_data, signal_data, color=[230 / 255, 25 / 255, 61 / 255])
+        # plot threshold as straight line
+        ax_WF.plot(
+            [0, x_data[-1]],
+            [threshold_value, threshold_value],
+            color=[150 / 255, 25 / 255, 61 / 255],
+        )
+        ax_WF.plot
         ax_WF.set_ylim(300, 0)
-        ax_WF.set_xlabel("Lifetime (ns)")
-        ax_WF.set_ylabel("Counts")
+        ax_WF.set_xlim(0, x_data[-1])
+        ax_WF.set_xlabel("Time (ns)")
+        ax_WF.set_ylabel("Amplitude (mV)")
         ax_WF.grid()
         self.display_WF.draw()
 
-        
-
-        
-
-
     ##########
-
 
     ##### TAB: HIT AND COINCIDENCE RATE #####
     def start_hit_rate_func(self):
@@ -1341,7 +1452,14 @@ class user_interface(QMainWindow):
         ##### TODO: data collection
         # reset all values
         self.reset_hit_rate_func()
-        
+
+        # ask for filename if none has been given yet
+        if self.experiment.filename == None:
+            self.save_data()
+
+        # set MuonLab to record data
+        self.experiment.start_save = True
+
         # create timer to update all three hit boxes
         self.hit_rate_timer = QTimer()
         self.hit_rate_timer.start(100)
@@ -1392,7 +1510,7 @@ class user_interface(QMainWindow):
         Sets values in hit rate boxes in hit rate and coincidence tab
         
         """
-        
+
         # get values
         # channel 1
         hits_in_last_second_ch1 = str(self.experiment.hits_ch1_last_10[-1])
@@ -1418,7 +1536,7 @@ class user_interface(QMainWindow):
         # runtime
         runtime = str(datetime.now() - self.hit_rate_start_t)
         self.run_time_HC.setText(runtime)
-        
+
     def start_coincidence_func(self):
         """
         Starts coincident hit measurements and data collection
@@ -1428,8 +1546,13 @@ class user_interface(QMainWindow):
         # reset all values
         self.reset_coincidence_func()
 
-        # set MuonLab to measure coincidences
+        # ask for filename if none has been given yet
+        if self.experiment.filename == None:
+            self.save_data()
+
+        # set MuonLab to measure coincidences and to save data
         self.experiment.set_measurement(coincidence=True)
+        self.experiment.start_save = True
 
         # create timer to update both coincidence boxes
         self.coincidence_timer = QTimer()
@@ -1489,7 +1612,36 @@ class user_interface(QMainWindow):
 
         # runtime
         self.run_time_coin_HC.setText(str(runtime))
+
     ##########
+
+    ##### UTILITIES #####
+    def closing_func(self):
+        """
+        Ensures USB connection is properly closed off before GUI is 
+        shut off
+        
+        """
+
+        # close measuring loop
+        try:
+            self.experiment.run_measurements = False
+        except:
+            pass
+
+    	# close thread
+        try:
+            self.main_thread.close()
+        except:
+            pass
+
+        # close off serial connection to port
+        try:
+            self.experiment.device.close()
+        except:
+            pass
+
+    
 
 
 if __name__ == "__main__":

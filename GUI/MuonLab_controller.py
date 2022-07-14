@@ -1,7 +1,9 @@
 import threading
 import serial
 import serial.tools.list_ports
+import pandas as pd
 from datetime import datetime, timedelta
+from pathlib import Path
 
 
 class MuonLab_experiment:
@@ -34,11 +36,16 @@ class MuonLab_experiment:
         # flush buffer to avoid overflowing
         self.flush_input()
 
+        # set saving data to true
+        self.start_save = False
+        self.filename = None
+
         # set all possible measurements to inactive initially
         self.measure_lifetime = 0
         self.measure_delta_time = 0
         self.measure_analog_input = 0
         self.measure_coincidences = 0
+        self.run_measurements = True
 
         ##### DATA LISTS #####
 
@@ -65,6 +72,27 @@ class MuonLab_experiment:
         # coincident data
         self.coincidences = 0
 
+        ##### TOTAL DATA FOR SAVING #####
+        # total data objects are created to prevent accidental data loss
+        # when for example resetting a measurement in the GUI
+
+        # lifetime data
+        self.total_lifetimes = []
+
+        # delta time data
+        self.total_delta_times = []
+
+        # hit rate data
+        # counter to help with calculating average while saving
+        self.hit_byte_counter_total = 0
+        self.hits_ch1_total_all_time = 0
+        self.hits_ch1_avg_total = 0
+
+        self.hits_ch2_total_all_time = 0
+        self.hits_ch2_avg_total = 0
+
+        # coincident data
+        self.coincidences_total = 0
 
     def set_value_PMT_1(self, value):
         """
@@ -114,7 +142,9 @@ class MuonLab_experiment:
         message = b"\x99" + b"\x17" + bytes([value]) + b"\x66"
         self.device.write(message)
 
-    def set_measurement(self, lifetime=None, delta_time=None, waveform=None, coincidence=None):
+    def set_measurement(
+        self, lifetime=None, delta_time=None, waveform=None, coincidence=None
+    ):
         """
         Select which measurements the MuonLab will perform by setting desired 
         measurement(s) to True or False. 
@@ -151,10 +181,11 @@ class MuonLab_experiment:
 
         # + 8 is to always enable USB
         selection_byte_value_decimal = (
-            self.measure_lifetime +
-            self.measure_delta_time +
-            self.measure_analog_input + 
-            self.measure_coincidences + 8
+            self.measure_lifetime
+            + self.measure_delta_time
+            + self.measure_analog_input
+            + self.measure_coincidences
+            + 8
         )
 
         # write message to MuonLab III
@@ -175,8 +206,13 @@ class MuonLab_experiment:
         # flush input if too many bytes are queued to avoid overflow
         self.flush_input()
 
+        # save time for saving intervals
+        self.start_time_measurements = datetime.now()
+        self.start_time_interval = datetime.now()
+        self.save_interval = timedelta(seconds=5)
+
         # runs continuously
-        while True:
+        while self.run_measurements == True:
             # check for beginning of a data message
             byte_1 = self.device.read(1)
             if byte_1 == b"\x99":
@@ -185,10 +221,18 @@ class MuonLab_experiment:
                 # check identifier of running data message to determine data type
                 byte_2 = self.device.read(1)
 
+                # DIGITISED INPUT SIGNAL
+                if byte_2 == b"\xC5":
+
+                    # true data is 2000 bytes but signal is located in first 100
+                    data_bytes = self.device.read(100)
+                    self.input_signal = list(data_bytes)
+
                 # HIT RATES(always active)
                 if byte_2 == b"\x35":
 
                     self.hit_byte_counter += 1
+                    self.hit_byte_counter_total += 1
 
                     bytes_ch2 = self.device.read(2)
                     hit_ch2 = int.from_bytes(bytes_ch2, byteorder="big")
@@ -204,6 +248,12 @@ class MuonLab_experiment:
                     ) / self.hit_byte_counter
                     self.hits_ch1_total += hit_ch1
 
+                    self.hits_ch1_avg_total = (
+                        self.hits_ch1_avg_total * (self.hit_byte_counter_total - 1)
+                        + hit_ch1
+                    ) / self.hit_byte_counter_total
+                    self.hits_ch1_total_all_time += hit_ch1
+
                     # ch2
                     self.hits_ch2_last_10.append(hit_ch2)
                     del self.hits_ch2_last_10[0]
@@ -212,12 +262,21 @@ class MuonLab_experiment:
                     ) / self.hit_byte_counter
                     self.hits_ch2_total += hit_ch2
 
+                    self.hits_ch2_avg_total = (
+                        self.hits_ch2_avg_total * (self.hit_byte_counter_total - 1)
+                        + hit_ch2
+                    ) / self.hit_byte_counter_total
+                    self.hits_ch2_total_all_time += hit_ch2
+
                 # COINCIDENT HITS
                 if byte_2 == b"\x55":
 
                     self.coincidences += 1
 
+                    self.coincidences_total += 1
+
                 # LIFETIME
+                # TODO: A7 is ch2
                 if byte_2 == b"\xA5":
 
                     # read and convert next 2 bytes corresponding to time
@@ -226,6 +285,7 @@ class MuonLab_experiment:
                     # step size = 10 ns
                     time_value = int_value * 10
                     self.lifetimes.append(time_value)
+                    self.total_lifetimes.append(time_value)
 
                 # DELTA TIME
                 if byte_2 == b"\xB5" or byte_2 == b"\xB7":
@@ -236,14 +296,19 @@ class MuonLab_experiment:
                     if byte_2 == b"\xB7":
                         value_time *= -1
                     self.delta_times.append(value_time)
+                    self.total_delta_times.append(value_time)
 
-                # DIGITISED INPUT SIGNAL
-                if byte_2 == b'\xC5':
-                    
-                    data_bytes = self.device.read(1999)
-                    self.input_signal = list(data_bytes)
+            # save data every set time interval if measuring
+            if self.start_save == True:
+                self.current_time = datetime.now()
+                if (self.current_time - self.start_time_interval) > self.save_interval:
+                    try:
+                        self.save_data()
+                    except:
+                        pass
 
-
+                    # reset interval timer
+                    self.start_time_interval = datetime.now()
 
     def flush_input(self):
         """ 
@@ -253,6 +318,40 @@ class MuonLab_experiment:
 
         if self.device.inWaiting() > 65000:
             self.device.flushInput()
+
+    def save_data(self):
+        """
+        Saves measured lifetimes, coincidences, hit rates and delta 
+        times in a .csv file.
+        
+        """
+
+        total_runtime = datetime.now() - self.start_time_measurements
+        total_runtime_seconds = total_runtime.total_seconds()
+
+        # make dataframes of all data
+        df_runtime = pd.DataFrame({"Total runtime (s)": [total_runtime_seconds]})
+        df_hits_ch1 = pd.DataFrame({"Hits channel 1": [self.hits_ch1_total_all_time]})
+        df_hits_ch2 = pd.DataFrame({"Hits channel 2": [self.hits_ch2_total_all_time]})
+        df_lifetime = pd.DataFrame({"Lifetimes (ns)": self.total_lifetimes})
+        df_delta_time = pd.DataFrame({"Delta times (ns)": self.total_delta_times})
+        df_coincidence = pd.DataFrame({"Total coincidences": [self.coincidences_total]})
+
+        df_total = pd.concat(
+            [
+                df_runtime,
+                df_hits_ch1,
+                df_hits_ch2,
+                df_lifetime,
+                df_delta_time,
+                df_coincidence,
+            ],
+            axis=1,
+        )
+
+        path = f"{self.filename}"
+
+        df_total.to_csv(f"{path}", index=False)
 
 
 def list_devices():
