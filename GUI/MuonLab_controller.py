@@ -209,7 +209,7 @@ class MuonLab_experiment:
         # save time for saving intervals
         self.start_time_measurements = datetime.now()
         self.start_time_interval = datetime.now()
-        self.save_interval = timedelta(seconds=5)
+        self.save_interval = timedelta(seconds=30)
 
         # runs continuously
         while self.run_measurements == True:

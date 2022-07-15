@@ -1004,9 +1004,20 @@ class user_interface(QMainWindow):
 
         self.device = self.device_select.currentText()
 
-        # close connection if a connection is already established
+        # close measuring loop and set settings back to default
         if self.experiment:
+            try:
+                self.experiment.run_measurements = False
+                self.experiment.set_value_PMT_1(0)
+                self.experiment.set_value_PMT_2(0)
+                self.experiment.set_threshold_ch_1(101)
+                self.experiment.set_threshold_ch_2(101)
+            except:
+                pass
+
+            # close connection if a connection is already established
             self.experiment.device.close()
+
 
         # initialise MuonLab III if right port is chosen and
         # initialise threading
@@ -1015,9 +1026,13 @@ class user_interface(QMainWindow):
 
             self.status_indicator.setText("CONNECTED")
             self.left_voltage.setText("300.0")
+            self.left_slider.setValue(0)
             self.right_voltage.setText("300.0")
+            self.right_slider.setValue(0)
             self.left_voltage_TL.setText("151.0")
+            self.left_slider_TL.setValue(101)
             self.right_voltage_TL.setText("151.0")
+            self.right_slider_TL.setValue(101)
 
             # timers to update set widgets every second
             self.box_counts_1_timer = QTimer()
@@ -1051,12 +1066,7 @@ class user_interface(QMainWindow):
             self.box_counts_1.setText(" ")
             self.box_counts_2.setText(" ")
 
-            # stop all experiments from updating if they are running
-            # close measuring loop
-            try:
-                self.experiment.run_measurements = False
-            except:
-                pass
+            # stop all timers from updating if they are running
             try:
                 self.main_thread.close()
             except:
@@ -1618,14 +1628,18 @@ class user_interface(QMainWindow):
     ##### UTILITIES #####
     def closing_func(self):
         """
-        Ensures USB connection is properly closed off before GUI is 
+        Ensures MuonLab III is properly closed before GUI is 
         shut off
         
         """
 
-        # close measuring loop
+        # set all MuonLab settings back to default and close measuring loop
         try:
             self.experiment.run_measurements = False
+            self.experiment.set_value_PMT_1(0)
+            self.experiment.set_value_PMT_2(0)
+            self.experiment.set_threshold_ch_1(101)
+            self.experiment.set_threshold_ch_2(101)
         except:
             pass
 
