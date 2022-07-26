@@ -4,7 +4,6 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import pyqtgraph as pg
 import sys
 import threading
 import numpy as np
@@ -12,10 +11,6 @@ import matplotlib.pyplot as plt
 import os
 
 from MuonLab_controller import list_devices, MuonLab_experiment
-
-# set general options for plots
-pg.setConfigOption("background", "w")
-pg.setConfigOption("foreground", "k")
 
 
 class user_interface(QMainWindow):
@@ -47,12 +42,9 @@ class user_interface(QMainWindow):
         app.aboutToQuit.connect(self.closing_func)
 
         # set general options for window
-        self.setWindowTitle("MuonLab III v0.1")
-        self.setWindowIcon(
-            QIcon(
-                "C:\\Users\\DELL\Desktop\\Internship summer\\own code\\src\\NIKHEF-MuonLabIII\\GUI\\nikhef_logo.png"
-            )
-        )
+        logo_path = os.path.join(os.path.dirname(__file__), "nikhef_logo.png")
+        self.setWindowTitle("MuonLab III v1.0")
+        self.setWindowIcon(QIcon(logo_path))
         palette_grey = central_widget.palette()
         palette_grey.setColor(QPalette.Background, QColor(100, 100, 100))
         palette_light_grey = central_widget.palette()
@@ -77,7 +69,6 @@ class user_interface(QMainWindow):
 
         # add nikhef logo (source: https://www.nikhef.nl/media/beeldmateriaal/)
         logo_label = QLabel("test")
-        logo_path = os.path.join(os.path.dirname(__file__), "nikhef_logo.png")
         pixmap_ = QPixmap(logo_path)
         pixmap = pixmap_.scaledToHeight(100)
         logo_label.setPixmap(pixmap)
