@@ -1012,84 +1012,83 @@ class user_interface(QMainWindow):
 
         # initialise MuonLab III if right port is chosen and
         # initialise threading
-        try:
-            self.experiment = MuonLab_experiment(port=self.device)
+        #try:
+        self.experiment = MuonLab_experiment(port=self.device)
 
-            self.status_indicator.setText("CONNECTED")
-            self.left_voltage.setText("300.0")
-            self.left_slider.setValue(0)
-            self.right_voltage.setText("300.0")
-            self.right_slider.setValue(0)
-            self.left_voltage_TL.setText("151.0")
-            self.left_slider_TL.setValue(101)
-            self.right_voltage_TL.setText("151.0")
-            self.right_slider_TL.setValue(101)
+        self.status_indicator.setText("CONNECTED")
+        self.left_voltage.setText("300.0")
+        self.left_slider.setValue(0)
+        self.right_voltage.setText("300.0")
+        self.right_slider.setValue(0)
+        self.left_voltage_TL.setText("151.0")
+        self.left_slider_TL.setValue(101)
+        self.right_voltage_TL.setText("151.0")
+        self.right_slider_TL.setValue(101)
 
-            # timers to update set widgets every second
-            self.box_counts_1_timer = QTimer()
-            self.box_counts_1_timer.start(500)
-            self.box_counts_1_timer.timeout.connect(self.box_counts_1_func)
+        # timers to update set widgets every second
+        self.box_counts_1_timer = QTimer()
+        self.box_counts_1_timer.start(500)
+        self.box_counts_1_timer.timeout.connect(self.box_counts_1_func)
 
-            self.box_counts_2_timer = QTimer()
-            self.box_counts_2_timer.start(500)
-            self.box_counts_2_timer.timeout.connect(self.box_counts_2_func)
+        self.box_counts_2_timer = QTimer()
+        self.box_counts_2_timer.start(500)
+        self.box_counts_2_timer.timeout.connect(self.box_counts_2_func)
 
-            ##### THREADING #####
-            self.main_thread = threading.Thread(
-                target=self.experiment.data_acquisition, args=()
-            )
-            self.main_thread.start()
+        ##### THREADING #####
+        self.main_thread = threading.Thread(
+            target=self.experiment.data_acquisition, args=()
+        )
+        self.main_thread.start()
 
         # if no connection can be established:
+        #except:
+        # reset all settings
+        self.experiment = None
+        self.status_indicator.setText("NOT CONNECTED")
+        self.left_voltage.setText(" ")
+        self.left_slider.setValue(0)
+        self.right_voltage.setText(" ")
+        self.right_slider.setValue(0)
+        self.left_voltage_TL.setText(" ")
+        self.left_slider_TL.setValue(101)
+        self.right_voltage_TL.setText(" ")
+        self.left_slider_TL.setValue(101)
+        self.box_counts_1.setText(" ")
+        self.box_counts_2.setText(" ")
+
+        # stop all timers from updating if they are running
+        try:
+            self.main_thread.close()
         except:
-
-            # reset all settings
-            self.experiment = None
-            self.status_indicator.setText("NOT CONNECTED")
-            self.left_voltage.setText(" ")
-            self.left_slider.setValue(0)
-            self.right_voltage.setText(" ")
-            self.right_slider.setValue(0)
-            self.left_voltage_TL.setText(" ")
-            self.left_slider_TL.setValue(101)
-            self.right_voltage_TL.setText(" ")
-            self.left_slider_TL.setValue(101)
-            self.box_counts_1.setText(" ")
-            self.box_counts_2.setText(" ")
-
-            # stop all timers from updating if they are running
-            try:
-                self.main_thread.close()
-            except:
-                pass
-            try:
-                self.lifetime_timer.disconnect()
-            except:
-                pass
-            try:
-                self.delta_time_timer.disconnect()
-            except:
-                pass
-            try:
-                self.hit_rate_timer.disconnect()
-            except:
-                pass
-            try:
-                self.coincidence_timer.disconnect()
-            except:
-                pass
-            try:
-                self.signal_timer.disconnect()
-            except:
-                pass
-            try:
-                self.box_counts_1_timer.disconnect()
-            except:
-                pass
-            try:
-                self.box_counts_2_timer.disconnect()
-            except:
-                pass
+            pass
+        try:
+            self.lifetime_timer.disconnect()
+        except:
+            pass
+        try:
+            self.delta_time_timer.disconnect()
+        except:
+            pass
+        try:
+            self.hit_rate_timer.disconnect()
+        except:
+            pass
+        try:
+            self.coincidence_timer.disconnect()
+        except:
+            pass
+        try:
+            self.signal_timer.disconnect()
+        except:
+            pass
+        try:
+            self.box_counts_1_timer.disconnect()
+        except:
+            pass
+        try:
+            self.box_counts_2_timer.disconnect()
+        except:
+            pass
 
     def save_data(self):
         """
