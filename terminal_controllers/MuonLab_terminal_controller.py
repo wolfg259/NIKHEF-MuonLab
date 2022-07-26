@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import argparse
 from pathlib import Path
 
 
@@ -364,47 +365,127 @@ class MuonLab_III:
 
 
 if __name__ == "__main__":
-    # test run
-    ml = MuonLab_III()
-    lifetimes = True
-    coincidences = True
-    hits = True
-    delta_time = True
-    save = True
 
-    if lifetimes:
-        lifetimes = ml.get_lifetimes(s=20)
-        if len(lifetimes) != 0:
-            print("average lifetime: {} ns".format(np.mean(lifetimes)))
-            plt.hist(lifetimes, edgecolor="black")
-            plt.grid()
-            plt.xlabel("lifetime (ns)")
-            plt.show()
-        else:
-            print("No decays measured")
+    parser = argparse.ArgumentParser(description="Control the NIKHEF MuonLab setup.")
+    parser.add_argument(
+        "experiment",
+        type=str,
+        default=None,
+        help="choose which experiment to run. options: lifetimes, coincidences, hits, delta_times",
+    )
+    parser.add_argument(
+        "--seconds",
+        "-s",
+        type=int,
+        default=20,
+        help="number of seconds to run experiment for",
+    )
+    parser.add_argument(
+        "--minutes",
+        "-m",
+        type=int,
+        default=0,
+        help="number of minutes to run experiment for",
+    )
+    parser.add_argument(
+        "--hours",
+        "-hrs",
+        type=int,
+        default=0,
+        help="number of hours to run experiment for",
+    )
+    parser.add_argument(
+        "--filename",
+        "-f",
+        type=str,
+        default="unnamed",
+        help="filename under which data is saved",
+    )
+    parser.add_argument(
+        "--print",
+        "-p",
+        type=bool,
+        default=True,
+        help="print values to screen during measurement",
+    )
 
-    if coincidences:
-        coin = ml.get_coincidences(s=20, print_coincidence=True)
-        print("Total found coincidences: {}".format(coin))
+    args = parser.parse_args()
 
-    if hits:
-        hits_ch1, hits_ch2 = ml.get_hit_rates(s=1, print_hits=True)
-        print(
-            "avg hits/s ch1: {} avg hits/s ch2: {}".format(
-                round(np.mean(hits_ch1), 2), round(np.mean(hits_ch2))
+    experiments = ["lifetimes", "coincidences", "hits", "delta_time"]
+
+    if args.experiment in experiments:
+        ml = MuonLab_III()
+        lifetimes = False
+        coincidences = False
+        hits = False
+        delta_times = False
+
+        if args.experiment == "lifetimes":
+            lifetimes = True
+        if args.experiment == "coincidences":
+            coincidences = True
+        if args.experiment == "hits":
+            hits = True
+        if args.experiment == "delta_times":
+            delta_times = True
+
+        if lifetimes:
+            lifetimes = ml.get_lifetimes(
+                s=args.seconds,
+                m=args.minutes,
+                h=args.hours,
+                print_lifetime=args.print,
             )
+            if len(lifetimes) != 0:
+                print("average lifetime: {} ns".format(np.mean(lifetimes)))
+                plt.hist(lifetimes, edgecolor="black")
+                plt.grid()
+                plt.xlabel("lifetime (ns)")
+                plt.show()
+            else:
+                print("No decays measured")
+
+        if coincidences:
+            coin = ml.get_coincidences(
+                s=args.seconds,
+                m=args.minutes,
+                h=args.hours,
+                print_coincidence=args.print,
+            )
+            print("Total found coincidences: {}".format(coin))
+
+        if hits:
+            hits_ch1, hits_ch2 = ml.get_hit_rates(
+                s=args.seconds,
+                m=args.minutes,
+                h=args.hours,
+                print_hits=args.print,
+            )
+            print(
+                "avg hits/s ch1: {} avg hits/s ch2: {}".format(
+                    round(np.mean(hits_ch1), 2), round(np.mean(hits_ch2))
+                )
+            )
+
+        if delta_times:
+            times = ml.get_delta_time(
+                s=args.seconds,
+                m=args.minutes,
+                h=args.hours,
+                print_time=args.print,
+            )
+            # plot should be normally distributed around 0 if detectors
+            # are not spaced vertically
+            if len(times) != 0:
+                plt.hist(times, edgecolor="black")
+                plt.grid()
+                plt.xlabel("Delta time (ns)")
+                plt.show()
+
+        ml.save_data(args.filename)
+
+    else:
+        print(
+            "\nThe specified experiment was not recognised. execute MuonLab_terminal_controller.py -h for available options.\n"
         )
-
-    if delta_time:
-        times = ml.get_delta_time(s=20, print_time=True)
-        # plot should be normally distributed around 0 if detectors
-        # are not spaced vertically
-        if len(times) != 0:
-            plt.hist(times, edgecolor="black")
-            plt.grid()
-            plt.xlabel("Delta time (ns)")
-            plt.show()
-
-    if save:
-        ml.save_data()
 
