@@ -34,4 +34,4 @@ python ./terminal_controllers/MuonLab_terminal_controller.py -h
 ```
 
 ## Notebooks
-.ipynb notebooks are available for measurement analysis. They are based around data taken using the MuonLab detector, but can also be run using the sample data "MuonLab sample data.csv" in the data folder. It is recommended to run the notebooks using Google CoLab, as this does not require any python or Jupyter installation and can thus be done by anybody on any computer. Simply open a CoLab window and upload the .iypnb file using a Google account.
+.ipynb notebooks are available for measurement analysis. They are based around data taken using the MuonLab detector, but can also be run using the sample data "Sample data.csv" in the data folder. It is recommended to run the notebooks using Google CoLab, as this does not require any python or Jupyter installation and can thus be done by anybody on any computer. Simply open a CoLab window and upload the .iypnb file and a data file using a Google account.
