@@ -88,9 +88,16 @@ class user_interface(QMainWindow):
         device_select_label = QLabel("Device")
         self.device_select.addItem("--select device--")
         connected_devices = list_devices()
-        for device in connected_devices:
-            self.device_select.addItem(device)
-        self.device_select.currentIndexChanged.connect(self.device_select_func)
+
+        """
+        TODO: ubuntu crashes when the device menu is accessed after
+        the contents of an empty list are added to it. this if
+        prevents the crash, but is not a practical solution yet.
+        """
+        if len(connected_devices) != 0:
+            for device in connected_devices:
+                self.device_select.addItem(device)
+            self.device_select.currentIndexChanged.connect(self.device_select_func)
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self.save_data)
 
@@ -1092,6 +1099,15 @@ class user_interface(QMainWindow):
             except:
                 pass
 
+            # display a popup asking to manually change the usb permissions
+            usb_permission_popup = QMessageBox()
+            usb_permission_popup.setWindowTitle("USB permission warning")
+            usb_permission_popup.setText(
+                f"No connection could be established with USB device {self.device}. If you are operating on a Linux machine, please close the program and ensure the permissions of the USB connection are set to read/write/execute by running the following command: \n\nsudo chmod 777 /dev/ttyUSB0"
+            )
+            usb_permission_popup.setIcon(QMessageBox.Icon.Warning)
+            usb_permission_popup.exec()
+
     def save_data(self):
         """
         #Requests file name and saves data if a MuonLab is connected
@@ -1712,6 +1728,12 @@ class user_interface(QMainWindow):
 
 
 if __name__ == "__main__":
+
+    # if os.name == "nt":
+    #    try:
+    #        os.system("sudo chmod 777 /dev/ttyUSB0")
+    #    except:
+    #        print("nee")
     app = QApplication(sys.argv)
     ui = user_interface()
     ui.show()
