@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QCoreApplication
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import sys
@@ -22,6 +22,7 @@ class user_interface(QMainWindow):
 
     def __init__(
         self,
+        set_no_usb_warning=True,
         set_PMV_tab=True,
         set_TL_tab=True,
         set_LFT_tab=True,
@@ -71,7 +72,7 @@ class user_interface(QMainWindow):
         top_bar_hbox = QHBoxLayout()
 
         # add nikhef logo (source: https://www.nikhef.nl/media/beeldmateriaal/)
-        logo_label = QLabel("test")
+        logo_label = QLabel("NIKHEF")
         pixmap_ = QPixmap(logo_path)
         pixmap = pixmap_.scaledToHeight(100)
         logo_label.setPixmap(pixmap)
@@ -80,41 +81,97 @@ class user_interface(QMainWindow):
         # add spacer
         top_bar_hbox.addWidget(QLabel("                   "))
 
-        # add device selection dropbox, connection indicator, save button
-        # create vbox layout to add title
-        device_vbox = QVBoxLayout()
-        # create drop-down menu and label
-        self.device_select = QComboBox()
-        device_select_label = QLabel("Device")
-        self.device_select.addItem("--select device--")
-        connected_devices = list_devices()
-
         """
         TODO: ubuntu crashes when the device menu is accessed after
-        the contents of an empty list are added to it. this if
-        prevents the crash, but is not a practical solution yet.
+        the contents of an empty list are added to it. this popup
+        avoids the crash, but is not a practical solution yet. To
+        disable it, set set_no_usb_warning to False.
         """
-        if len(connected_devices) != 0:
+        if set_no_usb_warning:
+            # check if any devices were found, if not loop until plugged in
+            connected_devices = list_devices()
+            self.no_device_found = False
+            while len(connected_devices) == 0:
+                # if no devices were found show popup
+                no_usb_popup = QMessageBox()
+                no_usb_popup.setWindowTitle("No suitable USB devices found")
+                no_usb_popup.setText(
+                    f"No MuonLab USB connection was found. Please ensure the USB cable and the MuonLab power supply are plugged in."
+                )
+                no_usb_popup.setIcon(QMessageBox.Icon.Warning)
+                no_usb_popup.setStandardButtons(QMessageBox.StandardButton.Ignore | QMessageBox.StandardButton.Retry)
+                response = no_usb_popup.exec()
+                if response == QMessageBox.StandardButton.Ignore:
+                    self.no_device_found = True
+                    break
+                # recheck usb devices
+                connected_devices = list_devices()
+            
+            # if device found: add device selection dropbox
+            if self.no_device_found == False:
+                # create vbox layout to add title
+                device_vbox = QVBoxLayout()
+                
+                # create drop-down menu and label
+                self.device_select = QComboBox()
+                device_select_label = QLabel("Device")
+                self.device_select.addItem("--select device--")
+                for device in connected_devices:
+                    self.device_select.addItem(device)
+                self.device_select.currentIndexChanged.connect(self.device_select_func)
+                
+                # add status indicator
+                self.status_indicator = QLineEdit()
+                self.status_indicator.setFixedWidth(150)
+                self.status_indicator.setReadOnly(True)
+                self.status_indicator.setText("NOT CONNECTED")
+
+                # add save button
+                self.save_button = QPushButton("Save")
+                self.save_button.clicked.connect(self.save_data)
+
+                # add widgets to own vbox
+                device_vbox.addWidget(device_select_label)
+                device_vbox.addWidget(self.device_select)
+                device_vbox.addWidget(self.status_indicator)
+                device_vbox.addWidget(self.save_button)
+
+                # add vbox layout to top bar layout
+                top_bar_hbox.addLayout(device_vbox)
+
+        else:
+            connected_devices = list_devices()
+
+            # create vbox layout to add title
+            device_vbox = QVBoxLayout()
+            
+            # create drop-down menu and label
+            self.device_select = QComboBox()
+            device_select_label = QLabel("Device")
+            self.device_select.addItem("--select device--")
+            
             for device in connected_devices:
                 self.device_select.addItem(device)
-            self.device_select.currentIndexChanged.connect(self.device_select_func)
-        self.save_button = QPushButton("Save")
-        self.save_button.clicked.connect(self.save_data)
+            self.device_select.currentIndexChanged.connect(self.device_select_func)    
+            
+            # add status indicator
+            self.status_indicator = QLineEdit()
+            self.status_indicator.setFixedWidth(150)
+            self.status_indicator.setReadOnly(True)
+            self.status_indicator.setText("NOT CONNECTED")
 
-        # add status indicator
-        self.status_indicator = QLineEdit()
-        self.status_indicator.setFixedWidth(150)
-        self.status_indicator.setReadOnly(True)
-        self.status_indicator.setText("NOT CONNECTED")
+            # add save button
+            self.save_button = QPushButton("Save")
+            self.save_button.clicked.connect(self.save_data)
 
-        # add widgets to own vbox
-        device_vbox.addWidget(device_select_label)
-        device_vbox.addWidget(self.device_select)
-        device_vbox.addWidget(self.status_indicator)
-        device_vbox.addWidget(self.save_button)
+            # add widgets to own vbox
+            device_vbox.addWidget(device_select_label)
+            device_vbox.addWidget(self.device_select)
+            device_vbox.addWidget(self.status_indicator)
+            device_vbox.addWidget(self.save_button)
 
-        # add vbox layout to top bar layout
-        top_bar_hbox.addLayout(device_vbox)
+            # add vbox layout to top bar layout
+            top_bar_hbox.addLayout(device_vbox)
 
         # add spacer
         top_bar_hbox.addWidget(QLabel("                   "))
@@ -994,6 +1051,7 @@ class user_interface(QMainWindow):
             tab_HC.setLayout(tab_HC_layout)
 
             tabs.addTab(tab_HC, "Hit and coincidence rate")
+
 
     ##### FUNCTIONS #####
     ##### TOP BAR #####
