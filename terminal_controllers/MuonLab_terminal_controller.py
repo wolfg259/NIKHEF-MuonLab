@@ -411,7 +411,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    experiments = ["lifetimes", "coincidences", "hits", "delta_time"]
+    experiments = ["lifetimes", "coincidences", "hits", "delta_times"]
 
     if args.experiment in experiments:
         ml = MuonLab_III()
@@ -431,10 +431,7 @@ if __name__ == "__main__":
 
         if lifetimes:
             lifetimes = ml.get_lifetimes(
-                s=args.seconds,
-                m=args.minutes,
-                h=args.hours,
-                print_lifetime=args.print,
+                s=args.seconds, m=args.minutes, h=args.hours, print_lifetime=args.print,
             )
             if len(lifetimes) != 0:
                 print("average lifetime: {} ns".format(np.mean(lifetimes)))
@@ -456,10 +453,7 @@ if __name__ == "__main__":
 
         if hits:
             hits_ch1, hits_ch2 = ml.get_hit_rates(
-                s=args.seconds,
-                m=args.minutes,
-                h=args.hours,
-                print_hits=args.print,
+                s=args.seconds, m=args.minutes, h=args.hours, print_hits=args.print,
             )
             print(
                 "avg hits/s ch1: {} avg hits/s ch2: {}".format(
@@ -469,10 +463,7 @@ if __name__ == "__main__":
 
         if delta_times:
             times = ml.get_delta_time(
-                s=args.seconds,
-                m=args.minutes,
-                h=args.hours,
-                print_time=args.print,
+                s=args.seconds, m=args.minutes, h=args.hours, print_time=args.print,
             )
             # plot should be normally distributed around 0 if detectors
             # are not spaced vertically
