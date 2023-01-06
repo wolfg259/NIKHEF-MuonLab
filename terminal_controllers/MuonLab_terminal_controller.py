@@ -368,6 +368,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Control the NIKHEF MuonLab setup.")
     parser.add_argument(
+        "port",
+        type=str,
+        default=None,
+        help="choose which connected USB device to run. (on linux: usually /dev/ttyUSB0 )"
+    )
+    parser.add_argument(
         "experiment",
         type=str,
         default=None,
@@ -414,7 +420,7 @@ if __name__ == "__main__":
     experiments = ["lifetimes", "coincidences", "hits", "delta_times"]
 
     if args.experiment in experiments:
-        ml = MuonLab_III()
+        ml = MuonLab_III(port=args.port)
         lifetimes = False
         coincidences = False
         hits = False
