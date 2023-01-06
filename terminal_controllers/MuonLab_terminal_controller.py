@@ -19,7 +19,7 @@ class MuonLab_III:
     Class to communicate with NIKHEF's MuonLab III, change settings and receive data.
     """
 
-    def __init__(self, port="COM3"):
+    def __init__(self, filename, port="COM3"):
         # try to find device or list available devices if device can't be found
         try:
             self.device = serial.Serial(port)
@@ -33,6 +33,8 @@ class MuonLab_III:
             raise Exception(
                 "Device port {} not found. Available ports: {}. If working with linux, please ensure rwx permissions are set correctly by running sudo chmod 777 {}".format(port, available_ports, port)
             )
+
+        self.filename = filename
 
         ##### TODO: make settings adjustable from class init #####
         # set initial settings of setup. see "Message Protocol MuonLab III.pdf" on wiki
@@ -113,6 +115,8 @@ class MuonLab_III:
                         time_value = int_value * 10
                         lifetimes.append(time_value)
 
+                        self.save_data(self.filename)
+
                         if print_lifetime:
                             print("     measured lifetime: {} ns".format(time_value))
 
@@ -171,6 +175,9 @@ class MuonLab_III:
 
                         coincidences += 1
                         if print_coincidence:
+
+                            self.save_data(self.filename)
+
                             print(
                                 "     measured coincidence. total: {}".format(
                                     coincidences
@@ -236,6 +243,8 @@ class MuonLab_III:
                         hit_ch1 = int.from_bytes(bytes_ch1, byteorder="big")
                         hits_ch1.append(hit_ch1)
                         hits_ch2.append(hit_ch2)
+
+                        self.save_data(self.filename)
 
                         if print_hits:
                             print("     ch1: {} ch2: {}".format(hit_ch1, hit_ch2))
@@ -304,6 +313,8 @@ class MuonLab_III:
                             value_time *= -1
                         delta_times.append(value_time)
 
+                        self.save_data(self.filename)
+
                         if print_time:
                             print("     measured delta time: {}".format(value_time))
 
@@ -358,11 +369,6 @@ class MuonLab_III:
         path = f"./data/{name}.csv"
 
         df_total.to_csv(f"{path}", index=False)
-
-        print("")
-        print("Saved data at: {}".format(path))
-        print("")
-
 
 if __name__ == "__main__":
 
@@ -420,11 +426,14 @@ if __name__ == "__main__":
     experiments = ["lifetimes", "coincidences", "hits", "delta_times"]
 
     if args.experiment in experiments:
-        ml = MuonLab_III(port=args.port)
+        ml = MuonLab_III(port=args.port, filename=args.filename)
         lifetimes = False
         coincidences = False
         hits = False
         delta_times = False
+
+        print("")
+        print("Saving data at: ./data/{}".format(args.filename))
 
         if args.experiment == "lifetimes":
             lifetimes = True
@@ -480,6 +489,7 @@ if __name__ == "__main__":
                 plt.show()
 
         ml.save_data(args.filename)
+        print("")
 
     else:
         print(
