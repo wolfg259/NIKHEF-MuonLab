@@ -31,7 +31,7 @@ class MuonLab_III:
                 available_ports.append(port)
 
             raise Exception(
-                "Device port not found. Available ports: {}".format(available_ports)
+                "Device port {} not found. Available ports: {}. If working with linux, please ensure rwx permissions are set correctly by running sudo chmod 777 {}".format(port, available_ports, port)
             )
 
         ##### TODO: make settings adjustable from class init #####
