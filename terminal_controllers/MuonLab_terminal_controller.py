@@ -1,4 +1,5 @@
 # author: Wolf Gautier wolf.gautier@nikhef.nl
+# coauthor: Rowen Hersche rowen.hersche@student.uva.nl
 # 05/07/2022
 # this file contains a controlling class for the NIKHEF MuonLab III
 # device (see https://www.nikhef.nl/muonlab/)
@@ -36,20 +37,41 @@ class MuonLab_III:
 
         self.filename = filename
 
-        ##### TODO: make settings adjustable from class init #####
-        # set initial settings of setup. see "Message Protocol MuonLab III.pdf" on wiki
+
+        # make bytes from terminal commands for initial settings. see "Message Protocol MuonLab III.pdf" on wiki 
+        if 300 <= args.voltage <= 1700:
+        	voltage_value = int(((args.voltage-300)/1400)*255) # HV = 300+((nBit/255)*1400); x6A=d106 > 800V; Default = 1673V = 250bit
+        	if voltage_value > 255: 
+        		voltage_value = 255 
+        else:
+        	voltage_value = 0
+        	raise OSError(
+                "Give voltage value between 300V and 1700V")   
+        voltage_pmt1 = b"\x99" + b"\x14" + bytes([voltage_value]) + b"\x66"
+        voltage_pmt2 = b"\x99" + b"\x15" + bytes([voltage_value]) + b"\x66"
+        
+        if args.threshold <= 380:
+        	threshold_value = int((args.threshold/380)*255) # TV = (nBit/255)*380mV; x22=d34 > 50mV; Default = 151mV = 101bit 
+        else:
+        	threshold_value = 0
+        	raise OSError(
+                "Give threshold value between 0mV and 380mV") 
+        threshold_pmt1 = b"\x99" + b"\x16" + bytes([threshold_value]) + b"\x66"
+        threshold_pmt2 = b"\x99" + b"\x17" + bytes([threshold_value]) + b"\x66"
+
+	# set initial settings of setup
         self.device.write(
-            b"\x99\x14\xFA\x66"
-        )  # (SET AS FA FOR 250(near max voltage)) # Set HV on PMT of CH1. HV = 300+((nBit/255)*1200); x6A=d106 > 800V
+            voltage_pmt1
+        ) # Set HV on PMT of CH1
         self.device.write(
-            b"\x99\x15\xFA\x66"
-        )  # Set HV on PMT of CH2. HV = 300+((nBit/255)*1200); x6A=d106 > 800V
+            voltage_pmt2
+        )  # Set HV on PMT of CH2.
         self.device.write(
-            b"\x99\x16\x65\x66"
-        )  # SET TO 65 = 101(150mV) # Set threshold voltage of PMT on CH1. TV = (nBit/255)*380mV; x22=d34 > 50mV
+            threshold_pmt1
+        ) # Set threshold voltage of PMT on CH1.
         self.device.write(
-            b"\x99\x17\x65\x66"
-        )  # Set threshold voltage of PMT on CH2. TV = (nBit/255)*380mV; x22=d34 > 50mV
+            threshold_pmt2
+        )  # Set threshold voltage of PMT on CH2. 
         self.device.write(
             b"\x99\x10\x55\x66"
         )  # Set offset ADC CH1 offset = (nBit/255)*380mV x55=d85 = 126 mV
@@ -79,7 +101,7 @@ class MuonLab_III:
         # set device to measure lifetime
         self.device.write(b"\x99\x20\x09\x66")
 
-        if m == 0 and m == 0 and s == 0:
+        if h == 0 and m == 0 and s == 0:
             s = 5
         start_time = datetime.now()
         dT_max = timedelta(seconds=s, minutes=m, hours=h)
@@ -144,7 +166,7 @@ class MuonLab_III:
         # set device to measure coincidences
         self.device.write(b"\x99\x20\x09\x66")
 
-        if m == 0 and m == 0 and s == 0:
+        if h == 0 and m == 0 and s == 0:
             s = 5
         start_time = datetime.now()
         dT_max = timedelta(seconds=s, minutes=m, hours=h)
@@ -207,13 +229,14 @@ class MuonLab_III:
         """
         # note: no need to change device settings, hit rates always returned
 
-        if m == 0 and m == 0 and s == 0:
+        if h == 0 and m == 0 and s == 0:
             s = 5
         start_time = datetime.now()
         dT_max = timedelta(seconds=s, minutes=m, hours=h)
         dT = timedelta(seconds=0.001)
         hits_ch1 = []
         hits_ch2 = []
+        self.a = "xFA" 
 
         print("")
         print(
@@ -277,7 +300,7 @@ class MuonLab_III:
         # set device to measure coincidences
         self.device.write(b"\x99\x20\x0A\x66")
 
-        if m == 0 and m == 0 and s == 0:
+        if h == 0 and m == 0 and s == 0:
             s = 5
         start_time = datetime.now()
         dT_max = timedelta(seconds=s, minutes=m, hours=h)
@@ -332,11 +355,16 @@ class MuonLab_III:
         Returns:
             signal: list of digitised values
 
-        """
-        # set device to measure coincidences
+        """        
+        #### TODO: make signal list and plot available from terminal ####
+        #set device to measure coincidences
         self.device.write(b"\x99\x20\x0A\x66")
-        ##### TODO: consider signal received and build function #####
-
+        
+        data_bytes = self.device.read(100) # get first 100 signals from photomultiplier 1
+        input_signal = list(data_bytes) # signal values are seperated by 5 ns; total signal time = 2 microseconds
+        
+        return input_signal
+	
     def save_data(self, name="unnamed"):
         """
         Saves measured lifetimes, coincidences, hit rates and delta 
@@ -389,7 +417,7 @@ if __name__ == "__main__":
         "--seconds",
         "-s",
         type=int,
-        default=20,
+        default=0,
         help="number of seconds to run experiment for",
     )
     parser.add_argument(
@@ -420,9 +448,21 @@ if __name__ == "__main__":
         default=True,
         help="print values to screen during measurement",
     )
-
+    parser.add_argument(
+    	"--voltage",
+    	"-v",
+    	type=int,
+    	default=1645,
+    	help="set voltage of photomultiplier Channel 1 and 2",
+    )
+    parser.add_argument(
+    	"--threshold",
+    	"-t",
+    	type=int,
+    	default=151,
+    	help="set threshold value of Channel 1 and 2",
+    )
     args = parser.parse_args()
-
     experiments = ["lifetimes", "coincidences", "hits", "delta_times"]
 
     if args.experiment in experiments:
@@ -431,6 +471,7 @@ if __name__ == "__main__":
         coincidences = False
         hits = False
         delta_times = False
+        signal = False
 
         print("")
         print("Saving data at: ./data/{}".format(args.filename))
@@ -487,7 +528,7 @@ if __name__ == "__main__":
                 plt.grid()
                 plt.xlabel("Delta time (ns)")
                 plt.show()
-
+                
         ml.save_data(args.filename)
         print("")
 
